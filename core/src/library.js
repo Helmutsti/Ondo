@@ -19,11 +19,14 @@
 import { existsSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import { createEmptyCatalog } from './catalog/catalogSchema.js';
+import { DB_FILE_NAME, LEGACY_CATALOG_FILE_NAME, createDatabase } from './catalog/sqlite.js';
 import { appConfigDir } from './appConfig.js';
 
 // I nomi del layout, in un posto solo: li usano sia questo modulo sia getPaths().
 export const DATA_DIR_NAME = 'data';
-export const CATALOG_FILE_NAME = 'libreria.json';
+// Il catalogo è un database SQLite (libreria.db) da quando libreria.json +
+// metadata.json sono diventati troppo grandi da riscrivere a ogni modifica.
+export const CATALOG_FILE_NAME = DB_FILE_NAME;
 export const LIBRARY_CONFIG_FILE_NAME = 'conf.json';
 
 // Le cartelle di una libreria. I video sono qui dentro solo quando `videosRoot`
@@ -41,7 +44,10 @@ const LIBRARY_DIRS = ['videos', 'thumbnails', 'avatars'];
  */
 export function isLibrary(dir) {
   if (typeof dir !== 'string' || !dir.trim()) return false;
-  return existsSync(path.join(dir, DATA_DIR_NAME, CATALOG_FILE_NAME));
+  const dataDir = path.join(dir, DATA_DIR_NAME);
+  // Anche una libreria ancora nel formato JSON: è una libreria, e al primo
+  // accesso viene convertita (vedi migrateLegacyLibrary in catalog/sqlite.js).
+  return existsSync(path.join(dataDir, CATALOG_FILE_NAME)) || existsSync(path.join(dataDir, LEGACY_CATALOG_FILE_NAME));
 }
 
 /**
@@ -65,10 +71,11 @@ export function initLibrary(dir) {
     created.push(name);
   }
 
-  // Scrittura atomica come per il catalogo a regime (tmp+rename): un'interruzione
-  // a metà non deve lasciare un `libreria.json` troncato, che al giro dopo
-  // sarebbe una libreria riconosciuta ma illeggibile — il peggiore dei due stati.
-  writeJsonAtomic(path.join(dataDir, CATALOG_FILE_NAME), createEmptyCatalog());
+  // createDatabase costruisce il file con un nome temporaneo e lo rinomina solo
+  // a lavoro finito: un'interruzione a metà non deve lasciare un libreria.db
+  // incompleto, che al giro dopo sarebbe una libreria riconosciuta ma rotta —
+  // il peggiore dei due stati.
+  createDatabase(path.join(dataDir, CATALOG_FILE_NAME), createEmptyCatalog());
   created.push(`${DATA_DIR_NAME}/${CATALOG_FILE_NAME}`);
   writeJsonAtomic(path.join(dataDir, LIBRARY_CONFIG_FILE_NAME), { videosRoot: null });
   created.push(`${DATA_DIR_NAME}/${LIBRARY_CONFIG_FILE_NAME}`);

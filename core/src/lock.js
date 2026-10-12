@@ -1,5 +1,10 @@
 // M80 — un lock su `data/`, invece di una regola che l'utente deve ricordare.
 //
+// Dal passaggio a SQLite il CATALOGO non passa più di qui: le sue scritture sono
+// transazioni del database, che fra processi diversi si coordinano da sole.
+// Restano coperti i file JSON (jobs.json, conf.json) e il ripristino da backup.
+// La storia sotto spiega perché il lock è nato.
+//
 // Il problema, che succede davvero: ogni processo tiene `libreria.json` in
 // memoria e **riscrive tutto** quando salva. Server e CLI aperti insieme si
 // sovrascrivono a vicenda — l'ultimo che salva cancella il lavoro dell'altro.

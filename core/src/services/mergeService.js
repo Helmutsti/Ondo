@@ -1,16 +1,18 @@
 // Fusione di due librerie: una SORGENTE (cartella esterna data/, con la sua
 // thumbnails/, avatars/) dentro la libreria TARGET (quella del processo corrente). Non
-// copia mai i video fisici — solo metadati (libreria.json/metadata.json),
+// copia mai i video fisici — solo schede e metadati grezzi del catalogo,
 // copertine (thumbnails) e avatar dei canali. In caso di conflitto sullo
 // stesso video (stesso id) vince il dato più completo, campo per campo: lo
 // stato locale (file fisico, download, presenza, curation utente) resta
 // sempre quello del target, mai quello della sorgente.
-import { existsSync, readFileSync, writeFileSync, copyFileSync, mkdirSync } from 'node:fs';
+import { existsSync, copyFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { getPaths } from '../config.js';
 import { readCatalog, updateCatalog } from '../catalog/catalogStore.js';
 import { readMetadata, setMetadata } from '../catalog/metadataStore.js';
 import { resolveForeignPaths } from '../foreignLibrary.js';
+import { getDb } from '../catalog/db.js';
+import { readLibraryData, snapshotDatabase } from '../catalog/sqlite.js';
 
 // Campi descrittivi sovrascritti IN BLOCCO dalla sorgente quando il suo
 // punteggio di completezza è strettamente maggiore di quello del target.
@@ -141,10 +143,7 @@ export async function mergeLibrary(sourceRoot, { dryRun = false } = {}) {
     throw new Error('La libreria sorgente coincide con quella corrente.');
   }
 
-  const sourceCatalog = JSON.parse(readFileSync(sPaths.catalogPath, 'utf-8'));
-  const sourceMetadata = existsSync(sPaths.metadataPath)
-    ? JSON.parse(readFileSync(sPaths.metadataPath, 'utf-8'))
-    : {};
+  const { catalog: sourceCatalog, metadata: sourceMetadata } = readLibraryData(sPaths.dataDir);
 
   const report = {
     sourceRoot: sPaths.root,
@@ -235,16 +234,14 @@ export async function mergeLibrary(sourceRoot, { dryRun = false } = {}) {
   // Copia di sicurezza del catalogo target prima di mutarlo: stesso principio
   // di restoreBackup (backupService.js), mai scrivere senza un modo per
   // tornare indietro.
-  if (existsSync(targetPaths.catalogPath)) {
-    const safetyPath = path.join(targetPaths.dataDir, `pre-merge-${timestamp()}.json`);
-    copyFileSync(targetPaths.catalogPath, safetyPath);
-    report.safetyBackupPath = safetyPath;
-  }
+  // Copia consistente del database anche mentre è in uso (VACUUM INTO).
+  const safetyPath = path.join(targetPaths.dataDir, `pre-merge-${timestamp()}.db`);
+  snapshotDatabase(getDb(), safetyPath);
+  report.safetyBackupPath = safetyPath;
 
   await updateCatalog((cat) => applyMerge(cat));
 
-  // metadata.json: fill-gap via metadataStore (mai bypassato con fs diretto,
-  // per non desincronizzare la sua cache in-memory).
+  // Metadati grezzi: fill-gap via metadataStore (solo gli id che mancano).
   for (const [id, entry] of Object.entries(sourceMetadata)) {
     if (await readMetadata(id)) continue;
     await setMetadata(id, entry);

@@ -47,7 +47,7 @@ export async function deleteVideoFile(id) {
     removeFromDownloadArchive(paths, id);
 
     // Reset dei soli campi legati al file fisico; metadati curati, thumbnail e
-    // grezzo (data/metadata.json) restano intatti.
+    // grezzo (nel catalogo) restano intatti.
     video.download = DOWNLOAD_STATE.NONE;
     video.video = {
       localPath: null, formatId: null, container: null, videoCodec: null, audioCodec: null,
@@ -66,7 +66,7 @@ export async function deleteVideoFile(id) {
 // sempre), lo stesso spirito del pulsante "Cancella" mostrato solo in
 // Archiviati. A differenza di deleteVideoFile qui sparisce anche la SCHEDA dal
 // catalogo (file video + copertina + entry di catalogo + metadati grezzi in
-// data/metadata.json), non solo il file fisico. Se il video appartiene ancora
+// nel catalogo), non solo il file fisico. Se il video appartiene ancora
 // a una fonte attiva su YouTube, la prossima sync la ricrea da zero (nuovo
 // stub, poi ri-arricchito) — non è un blocklist permanente, è "come se non
 // l'avessimo mai catalogato". Tolto anche dall'archivio yt-dlp

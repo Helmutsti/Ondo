@@ -34,7 +34,7 @@ C:\OndoWeb\                  ← L'INSTALLAZIONE. Usa e getta: la rifai in un mi
 
 D:\MiaLibreria\              ← LA LIBRERIA. Preziosa: ci sono i tuoi video
   videos\  thumbnails\  avatars\
-  data\  →  libreria.json (il catalogo), conf.json, metadata.json, jobs.json
+  data\  →  libreria.db (il catalogo), conf.json, jobs.json
 ```
 
 Perché separate: la libreria la apri anche dalla CLI, la copi per il backup, la sposti su un altro disco quando cresce. Metterla dentro la cartella del deploy significa mescolare la cosa che butti con quella che tieni.
@@ -280,11 +280,14 @@ La libreria è una cartella qualsiasi, dove vuoi nel sistema, fatta così:
   thumbnails/             le copertine
   avatars/                le foto profilo dei canali
   data/
-    libreria.json         il catalogo
+    libreria.db           il catalogo e i metadati grezzi di yt-dlp (SQLite)
     conf.json             le impostazioni della libreria
-    metadata.json         i metadati grezzi di yt-dlp
     jobs.json             lo storico dei download
 ```
+
+Il catalogo è un database SQLite: una modifica scrive solo le schede che cambiano, invece di riscrivere tutto. Le librerie delle versioni precedenti (`libreria.json` + `metadata.json`) si convertono da sole la prima volta che vengono aperte; i due JSON restano accanto come `*.migrato`. Il backup zip della web app contiene il database e ripristina anche gli zip vecchi.
+
+**Il catalogo va tenuto su un disco locale**: SQLite su una cartella di rete (NFS, SMB) può corrompersi. I video possono stare dove vuoi, anche su un NAS (`videosRoot`). Per copiare la libreria a mano chiudi prima server e CLI, oppure usa il backup zip, che è sempre consistente. Serve Node.js 22.13 o più recente.
 
 E `conf.json` ha un campo, uno solo:
 

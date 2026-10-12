@@ -161,7 +161,7 @@ async function stato(app) {
   riga('radice', cfg.root);
   riga('video', cfg.videos);
   riga('copertine', cfg.covers);
-  riga('metadati', cfg.metadata);
+  riga('catalogo', cfg.catalog);
   console.log(ui.style.bold('binari'));
   riga('yt-dlp', cfg.ytdlp);
   riga('ffmpeg', cfg.ffmpeg);

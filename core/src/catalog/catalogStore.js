@@ -1,19 +1,95 @@
-import { existsSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { getPaths } from '../config.js';
-import { acquireDataLock } from '../lock.js';
-import { createEmptyCatalog, DOWNLOAD_STATE, migrateVideoToFlags, migrateVideoToSources, normalizeVideoAxes } from './catalogSchema.js';
+import { DOWNLOAD_STATE, migrateVideoToFlags, migrateVideoToSources, normalizeVideoAxes } from './catalogSchema.js';
 import { locateCurrentFile, buildVideoFileIndex } from '../services/libraryService.js';
+import { getDb, onDbClosed, writeTransaction } from './db.js';
+import { COLLECTIONS, KV_FIELDS, readCatalogFrom } from './sqlite.js';
+
+// Il catalogo vive in data/libreria.db (vedi sqlite.js) ma i servizi lo usano
+// come prima: un oggetto { videos, sources, channelAvatars, queue, meta } da
+// leggere con readCatalog e da modificare dentro updateCatalog. Cambia solo
+// cosa succede sotto quando si salva.
+//
+// Prima: a ogni modifica si rileggeva libreria.json da disco, si rifaceva la
+// riconciliazione con la cartella dei video (un giro su TUTTI i file, anche su
+// un NAS) e si riscriveva il file intero. Adesso: l'oggetto resta in memoria,
+// una modifica scrive nel database solo le schede che sono cambiate, e la
+// riconciliazione col disco si fa una volta, al primo caricamento del processo.
+//
+// Come si sa cosa è cambiato: per ogni scheda si tiene il JSON con cui è stata
+// letta o scritta l'ultima volta (`saved`), e dopo il mutator si confronta.
+// Serializzare tutto il catalogo costa qualche decina di millisecondi; scrivere
+// solo le differenze ne risparmia decine di MB.
+//
+// Un altro processo (la CLI mentre gira il server) può aver scritto nel
+// frattempo: lo dice `PRAGMA data_version`, che cambia solo per i commit delle
+// ALTRE connessioni. Se è cambiato, si rilegge dal database prima di usare
+// l'oggetto in memoria — al posto della rilettura a ogni modifica di prima.
 
 let catalog = null;
-let loadPromise = null;
-let writeQueue = Promise.resolve();
+let saved = null;       // Map "<campo>\0<chiave>" → JSON salvato
+let savedKv = null;     // Map campo → JSON salvato (version, queue, meta)
+let seenVersion = null; // data_version dell'ultima lettura
+let writing = false;    // una transazione del catalogo è aperta in questo processo
+let reconciled = false; // riconciliazione col disco già fatta in questo processo
 
-function readCatalogFromDisk() {
-  const { catalogPath } = getPaths();
-  if (!existsSync(catalogPath)) {
-    return createEmptyCatalog();
+onDbClosed(() => {
+  catalog = null;
+  saved = null;
+  savedKv = null;
+  seenVersion = null;
+  reconciled = false;
+});
+
+function dataVersion(db) {
+  return db.prepare('PRAGMA data_version').get().data_version;
+}
+
+function loadFromDb(db) {
+  catalog = readCatalogFrom(db);
+  saved = new Map();
+  for (const { field } of COLLECTIONS) {
+    for (const [k, value] of Object.entries(catalog[field])) saved.set(`${field}\0${k}`, JSON.stringify(value));
   }
-  return JSON.parse(readFileSync(catalogPath, 'utf-8'));
+  savedKv = new Map(KV_FIELDS.map((f) => [f, JSON.stringify(catalog[f])]));
+  seenVersion = dataVersion(db);
+}
+
+// Scrive le sole differenze fra l'oggetto in memoria e quanto salvato. Va
+// chiamata dentro una transazione. Ritorna quante righe ha toccato.
+function persistChanges(db, cat) {
+  let changes = 0;
+  for (const { field, table, key } of COLLECTIONS) {
+    const upsert = db.prepare(`INSERT OR REPLACE INTO ${table} (${key}, data) VALUES (?, ?)`);
+    const remove = db.prepare(`DELETE FROM ${table} WHERE ${key} = ?`);
+    const prefix = `${field}\0`;
+    const present = new Set();
+    for (const [k, value] of Object.entries(cat[field] ?? {})) {
+      const id = prefix + k;
+      present.add(id);
+      const json = JSON.stringify(value);
+      if (saved.get(id) === json) continue;
+      upsert.run(k, json);
+      saved.set(id, json);
+      changes++;
+    }
+    for (const id of [...saved.keys()]) {
+      if (!id.startsWith(prefix) || present.has(id)) continue;
+      remove.run(id.slice(prefix.length));
+      saved.delete(id);
+      changes++;
+    }
+  }
+  if (changes > 0) cat.meta = { ...cat.meta, lastUpdated: new Date().toISOString() };
+  const kv = db.prepare('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)');
+  for (const field of KV_FIELDS) {
+    const json = JSON.stringify(cat[field]);
+    if (savedKv.get(field) === json) continue;
+    kv.run(field, json);
+    savedKv.set(field, json);
+    changes++;
+  }
+  return changes;
 }
 
 // Azzera i campi del file fisico (usato quando il disco smentisce un
@@ -96,38 +172,27 @@ function reconcileOnLoad(cat) {
   return changed;
 }
 
-// Scelta come UNICO punto che tocca i byte di libreria.json su disco, e per
-// questo si prende il lock qui invece che nei chiamanti: `updateCatalog` lo
-// tiene già preso più in largo (vedi sopra), ma la migrazione una tantum in
-// `ensureLoaded` chiama questa funzione direttamente — senza il lock qui
-// dentro, quella scrittura resterebbe scoperta. Rientrante, quindi la doppia
-// acquisizione da `updateCatalog` non costa nulla (vedi lock.js).
-function persistToDisk(cat) {
-  const { catalogPath } = getPaths();
-  const tmpPath = `${catalogPath}.tmp`;
-  cat.meta.lastUpdated = new Date().toISOString();
-  const release = acquireDataLock();
-  try {
-    writeFileSync(tmpPath, JSON.stringify(cat, null, 2), 'utf-8');
-    renameSync(tmpPath, catalogPath);
-  } finally {
-    release();
+// Il catalogo in memoria, caricato (e riconciliato col disco) al primo uso e
+// riletto se un altro processo ha scritto nel frattempo. Mai durante una
+// modifica in corso: il mutator sta lavorando su questo stesso oggetto.
+function ensureLoaded() {
+  const db = getDb();
+  if (!catalog) {
+    loadFromDb(db);
+  } else if (!writing && dataVersion(db) !== seenVersion) {
+    loadFromDb(db);
   }
+  return catalog;
 }
 
-async function ensureLoaded() {
-  if (catalog) return catalog;
-  if (!loadPromise) {
-    loadPromise = (async () => {
-      const loaded = readCatalogFromDisk();
-      if (reconcileOnLoad(loaded)) {
-        persistToDisk(loaded);
-      }
-      catalog = loaded;
-      return catalog;
-    })();
-  }
-  return loadPromise;
+// Migrazioni dei vecchi formati e riconciliazione col disco: una volta per
+// processo, al primo accesso. È l'unico momento in cui si guarda l'intera
+// cartella dei video.
+async function ensureReconciled() {
+  ensureLoaded();
+  if (reconciled) return;
+  reconciled = true;
+  await updateCatalog((cat) => { reconcileOnLoad(cat); });
 }
 
 // ⚠️ Restituisce l'oggetto **vivo** in memoria, non una copia: va letto dentro
@@ -138,6 +203,7 @@ async function ensureLoaded() {
 // decisione stabilmente vecchia invece che casualmente vecchia — e costerebbe a
 // ogni richiesta dell'API, quindi il rimedio giusto è mutare dentro il mutex.
 export async function readCatalog() {
+  await ensureReconciled();
   return ensureLoaded();
 }
 
@@ -176,38 +242,32 @@ export async function claimVideosForDownload(ids, { allowRedownload = false } = 
   return claimed;
 }
 
-// Serializza tutte le mutazioni su un'unica coda (mutex asincrono): garantisce
-// che due mutazioni concorrenti *in questo processo* non si sovrascrivano a
-// vicenda. Se il mutator lancia un errore, viene catturato qui e ri-lanciato al
-// solo chiamante che lo ha causato, senza "avvelenare" la coda per le
-// mutazioni successive.
+// Tutte le modifiche passano da qui, una per volta (la coda è in db.js), dentro
+// una transazione SQLite: il mutator lavora sull'oggetto in memoria, poi si
+// scrivono le sole schede cambiate. Se il mutator lancia, la transazione si
+// annulla e l'oggetto in memoria — che può essere stato modificato a metà — si
+// ricarica dal database; l'errore arriva al solo chiamante che l'ha causato.
 export async function updateCatalog(mutator) {
-  await ensureLoaded();
-  let result;
-  let error;
-  writeQueue = writeQueue.then(async () => {
-    const release = acquireDataLock();
-    try {
-      // M92 — rilettura da disco prima di mutare, dentro il lock: il lock ora
-      // si prende solo per la durata di una scrittura (non più per l'intera
-      // sessione), quindi un altro processo può aver scritto da quando questo
-      // processo ha caricato il catalogo l'ultima volta. Senza rileggere,
-      // muteremmo la copia in memoria di QUESTO processo — vecchia — e la sua
-      // persistToDisk cancellerebbe in silenzio la scrittura dell'altro. Il
-      // lock impedisce solo la sovrapposizione fisica di due scritture; questo
-      // è ciò che impedisce l'un-sovrascrive-l'altro fra scritture in momenti
-      // diversi.
-      catalog = readCatalogFromDisk();
-      reconcileOnLoad(catalog);
-      result = await mutator(catalog);
-      persistToDisk(catalog);
-    } catch (err) {
-      error = err;
-    } finally {
-      release();
+  if (!reconciled && !writing) await ensureReconciled();
+  try {
+    return await writeTransaction(async (db) => {
+      const nested = writing;
+      if (!nested) {
+        if (!catalog || dataVersion(db) !== seenVersion) loadFromDb(db);
+        writing = true;
+      }
+      try {
+        const result = await mutator(catalog);
+        persistChanges(db, catalog);
+        return result;
+      } finally {
+        if (!nested) writing = false;
+      }
+    });
+  } catch (err) {
+    if (!writing) {
+      try { loadFromDb(getDb()); } catch { catalog = null; }
     }
-  });
-  await writeQueue;
-  if (error) throw error;
-  return result;
+    throw err;
+  }
 }

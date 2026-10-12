@@ -94,7 +94,7 @@ export class Library {
       root: paths.libraryRoot,
       videos: paths.videosDir,
       covers: paths.thumbnailsDir,
-      metadata: paths.metadataPath,
+      catalog: paths.catalogPath,
       ytdlp: paths.ytdlpBinaryPath,
       ffmpeg: resolveTool('ffmpeg', names.ffmpeg),
       ffprobe: resolveTool('ffprobe', names.ffprobe),

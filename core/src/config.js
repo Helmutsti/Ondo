@@ -191,8 +191,8 @@ export function getPaths() {
   //   <libreria>/videos/          i file video (o altrove: vedi videosRoot)
   //   <libreria>/thumbnails/      le copertine
   //   <libreria>/avatars/         le foto profilo dei canali
-  //   <libreria>/data/            libreria.json (il catalogo), conf.json,
-  //                               metadata.json, jobs.json, il lock, l'archivio
+  //   <libreria>/data/            libreria.db (catalogo e metadati, SQLite),
+  //                               conf.json, jobs.json, il lock, l'archivio
   //
   // Copertine e avatar stavano dentro data/media/: ora sono in cima, alla pari
   // dei video. `data/` resta per ciò che è funzionale — il catalogo e i file di
@@ -227,11 +227,10 @@ export function getPaths() {
     thumbnailsDir,
     avatarsDir,
     dataDir,
-    // M97 — il catalogo si chiama `libreria.json` (era catalog.json), e
-    // l'archivio di yt-dlp è passato da data/media/ a data/: è un file
-    // funzionale, non un'immagine.
+    // Il catalogo è data/libreria.db (SQLite): schede, fonti, avatar, coda E
+    // metadati grezzi, che erano libreria.json + metadata.json. L'archivio di
+    // yt-dlp (M97) sta in data/: è un file funzionale, non un'immagine.
     catalogPath: path.join(dataDir, CATALOG_FILE_NAME),
-    metadataPath: path.join(dataDir, 'metadata.json'),
     jobsDir,
     downloadArchivePath: path.join(dataDir, '.ytdlp-archive.txt'),
     ...getToolPaths()

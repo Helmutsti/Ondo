@@ -3,22 +3,21 @@
 // getPaths() (config.js) è sola lettura e parametrizzata su un root
 // arbitrario: niente cache di processo, niente mkdirSync — la cartella
 // sorgente non va mai toccata, solo letta.
-import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { isLibrary } from './library.js';
 
 export function resolveForeignPaths(sourceRoot) {
   const root = path.resolve(sourceRoot);
   const dataDir = path.join(root, 'data');
-  // M97 — stesso layout della libreria locale: il catalogo è data/libreria.json,
-  // copertine e avatar sono in cima alla libreria (non più dentro data/media).
-  const catalogPath = path.join(dataDir, 'libreria.json');
-  if (!existsSync(catalogPath)) {
-    throw new Error(`Cartella sorgente non valida: manca data/libreria.json in ${root}`);
+  // Stesso layout della libreria locale: catalogo in data/ (libreria.db, o i
+  // vecchi libreria.json + metadata.json — readLibraryData li legge entrambi),
+  // copertine e avatar in cima alla libreria.
+  if (!isLibrary(root)) {
+    throw new Error(`Cartella sorgente non valida: manca il catalogo in ${dataDir}`);
   }
   return {
     root,
-    catalogPath,
-    metadataPath: path.join(dataDir, 'metadata.json'),
+    dataDir,
     thumbnailsDir: path.join(root, 'thumbnails'),
     avatarsDir: path.join(root, 'avatars')
   };

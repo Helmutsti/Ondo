@@ -1,16 +1,23 @@
 // Backup e ripristino dello stato del catalogo in un archivio .zip (M36, esteso
 // in M61). Contiene TUTTO lo stato ricostruibile TRANNE i file video grezzi (i
-// pesanti): i file dati JSON, le impostazioni della libreria (conf.json) e le
-// immagini (copertine + avatar). NON include i video (ri-scaricabili), né
+// pesanti): il catalogo (libreria.db, con i metadati grezzi), lo storico dei
+// job, le impostazioni della libreria (conf.json) e le immagini (copertine +
+// avatar). Il ripristino accetta anche gli zip delle versioni precedenti, con
+// libreria.json + metadata.json al posto del database. NON include i video (ri-scaricabili), né
 // core/cookies.txt (dati di sessione sensibili, lo zip non è cifrato), né le
 // impostazioni dell'APPLICAZIONE — quelle vivono con l'installazione (M96), non
 // con la libreria, e un ripristino non deve riconfigurare il programma.
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, renameSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, renameSync, readdirSync, statSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { getPaths } from '../config.js';
 import { acquireDataLock } from '../lock.js';
 import { createZip, readZip } from '../lib/zip.js';
+import { closeDb, getDb } from '../catalog/db.js';
+import {
+  DB_FILE_NAME, LEGACY_CATALOG_FILE_NAME, LEGACY_METADATA_FILE_NAME,
+  createDatabase, openDatabase, readCatalogFrom, removeDatabaseFiles, snapshotDatabase
+} from '../catalog/sqlite.js';
 
 // Whitelist esplicita dei file dati JSON inclusi nel backup. Da M61 include
 // anche il config della libreria (che da M96 contiene solo il percorso dei
@@ -19,9 +26,12 @@ import { createZip, readZip } from '../lib/zip.js';
 // ripristino non viene MAI scritto un nome di file diverso da questi, anche se
 // presente nello zip (sicurezza: nessun path traversal / sovrascrittura
 // arbitraria dallo zip). cookies.txt resta escluso (dati di sessione sensibili).
-// M97 — nomi del nuovo layout: il catalogo è `libreria.json`, il config della
-// libreria è `conf.json` (e contiene solo il percorso dei video).
-const BACKUP_JSON_FILES = ['libreria.json', 'metadata.json', 'jobs.json', 'conf.json'];
+// Il catalogo (libreria.db) non è qui: si copia a parte, con VACUUM INTO. Il
+// config della libreria è `conf.json` (e contiene solo il percorso dei video).
+const BACKUP_JSON_FILES = ['jobs.json', 'conf.json'];
+// Il catalogo delle versioni precedenti: si accetta solo in ripristino, e si
+// converte nel database invece di essere scritto come file.
+const LEGACY_JSON_FILES = [LEGACY_CATALOG_FILE_NAME, LEGACY_METADATA_FILE_NAME];
 
 // Cartelle immagini incluse nel backup: prefisso nello zip → cartella su disco.
 // Sono copertine (thumbnails) e avatar dei canali: immagini, non video, quindi
@@ -59,12 +69,24 @@ function listFiles(dir) {
 }
 
 /**
- * Crea un backup .zip in memoria: file dati JSON (whitelist) + impostazioni +
- * immagini (copertine/avatar). Esclude i video grezzi e i cookie.
+ * Crea un backup .zip in memoria: catalogo (libreria.db) + storico dei job +
+ * impostazioni + immagini (copertine/avatar). Esclude i video grezzi e i cookie.
  * @returns {Buffer} i byte dell'archivio zip
  */
 export function createBackup() {
   const entries = [];
+
+  // Il database si copia con VACUUM INTO, non leggendo il file: con il WAL una
+  // parte delle ultime scritture può stare ancora in libreria.db-wal, e un
+  // altro processo può scrivere proprio adesso. La copia è consistente.
+  const { dataDir } = getPaths();
+  const snapshot = path.join(dataDir, `.backup-${process.pid}-${Date.now()}.db`);
+  try {
+    snapshotDatabase(getDb(), snapshot);
+    entries.push({ name: DB_FILE_NAME, data: readFileSync(snapshot) });
+  } finally {
+    rmSync(snapshot, { force: true });
+  }
 
   for (const name of BACKUP_JSON_FILES) {
     const p = dataFilePath(name);
@@ -94,13 +116,14 @@ function parseImageEntryName(name) {
 }
 
 /**
- * Ripristina i file da un backup .zip. Prima copia i file dati JSON attuali in
- * una cartella di sicurezza `data/pre-restore-<timestamp>/`, poi sostituisce
- * atomicamente i soli file JSON in whitelist presenti nello zip e riscrive le
- * immagini (copertine/avatar) nelle rispettive cartelle. Le immagini vengono
- * sovrascritte/aggiunte, mai cancellate: per questo non entrano nella copia di
- * sicurezza. NON ricarica lo stato in memoria: il processo (server/CLI) va
- * riavviato per applicare (config.json compreso).
+ * Ripristina da un backup .zip (nuovo, con libreria.db, o di una versione
+ * precedente, con libreria.json + metadata.json). Prima copia catalogo e file
+ * dati attuali in una cartella di sicurezza `data/pre-restore-<timestamp>/`,
+ * poi sostituisce il catalogo e i file JSON in whitelist presenti nello zip e
+ * riscrive le immagini (copertine/avatar) nelle rispettive cartelle. Le
+ * immagini vengono sovrascritte/aggiunte, mai cancellate: per questo non
+ * entrano nella copia di sicurezza. Il catalogo si ricarica da sé; per
+ * conf.json e lo storico dei job il processo (server/CLI) va riavviato.
  * @param {Buffer} zipBuffer
  * @returns {{restored: string[], restoredImages: number, backedUp: string[], safetyDir: string, requiresRestart: boolean}}
  */
@@ -108,8 +131,11 @@ export function restoreBackup(zipBuffer) {
   const entries = readZip(zipBuffer);
   const jsonByName = new Map();
   const imageEntries = [];
+  let dbData = null;
   for (const e of entries) {
-    if (BACKUP_JSON_FILES.includes(e.name)) {
+    if (e.name === DB_FILE_NAME) {
+      dbData = e.data;
+    } else if (BACKUP_JSON_FILES.includes(e.name) || LEGACY_JSON_FILES.includes(e.name)) {
       jsonByName.set(e.name, e.data);
     } else {
       const img = parseImageEntryName(e.name);
@@ -119,35 +145,59 @@ export function restoreBackup(zipBuffer) {
     }
   }
 
-  // Validazione: il catalogo è obbligatorio; ogni file JSON riconosciuto
-  // dev'essere JSON valido (evita di sostituire i dati con spazzatura).
-  if (!jsonByName.has('libreria.json')) {
-    throw new Error('Backup non valido: libreria.json mancante.');
+  // Validazione: il catalogo è obbligatorio (database, o JSON di una versione
+  // precedente); ogni file JSON riconosciuto dev'essere JSON valido (evita di
+  // sostituire i dati con spazzatura).
+  if (!dbData && !jsonByName.has(LEGACY_CATALOG_FILE_NAME)) {
+    throw new Error(`Backup non valido: manca il catalogo (${DB_FILE_NAME} o ${LEGACY_CATALOG_FILE_NAME}).`);
   }
-  for (const name of BACKUP_JSON_FILES) {
-    if (!jsonByName.has(name)) continue;
+  const parsed = new Map();
+  for (const [name, data] of jsonByName) {
     try {
-      JSON.parse(jsonByName.get(name).toString('utf-8'));
+      parsed.set(name, JSON.parse(data.toString('utf-8')));
     } catch {
       throw new Error(`Backup non valido: ${name} non è JSON valido.`);
     }
   }
 
-  const { dataDir } = getPaths();
+  const { dataDir, catalogPath } = getPaths();
 
-  // M92 — un lock solo, tenuto per tutto il ripristino: qui non c'è un
-  // mutator sincero da riproteggere in mezzo (a differenza di
-  // catalogStore/metadataStore), è direttamente una sostituzione fisica di
-  // file su disco — quindi tutta l'operazione va trattata come una singola
-  // scrittura. `restoreBackup` avvisa già il chiamante che il processo va
-  // riavviato per applicare, quindi non serve rileggere nulla dopo.
+  // Il nuovo database si prepara accanto a quello attuale e lo si controlla
+  // PRIMA di toccare qualunque cosa: uno zip con un database illeggibile non
+  // deve lasciare la libreria senza catalogo.
+  const incoming = `${catalogPath}.ripristino`;
+  removeDatabaseFiles(incoming);
+  try {
+    if (dbData) {
+      writeFileSync(incoming, dbData);
+      const check = openDatabase(incoming, { readOnly: true });
+      try {
+        readCatalogFrom(check);
+      } finally {
+        check.close();
+      }
+    } else {
+      createDatabase(incoming, parsed.get(LEGACY_CATALOG_FILE_NAME), parsed.get(LEGACY_METADATA_FILE_NAME) ?? {});
+    }
+  } catch (err) {
+    removeDatabaseFiles(incoming);
+    throw new Error(`Backup non valido: il catalogo non si legge (${err.message}).`);
+  }
+
+  // M92 — un lock solo, tenuto per tutto il ripristino: è una sostituzione
+  // fisica di file su disco, quindi tutta l'operazione va trattata come una
+  // singola scrittura.
   const release = acquireDataLock();
   let safetyDir, backedUp, restored, restoredImages;
   try {
-    // 1. Copia di sicurezza dei soli file dati JSON attuali.
+    // 1. Copia di sicurezza del catalogo e dei file dati attuali.
     safetyDir = path.join(dataDir, `pre-restore-${timestamp()}`);
     mkdirSync(safetyDir, { recursive: true });
     backedUp = [];
+    if (existsSync(catalogPath)) {
+      snapshotDatabase(getDb(), path.join(safetyDir, DB_FILE_NAME));
+      backedUp.push(DB_FILE_NAME);
+    }
     for (const name of BACKUP_JSON_FILES) {
       const current = dataFilePath(name);
       if (existsSync(current)) {
@@ -156,8 +206,16 @@ export function restoreBackup(zipBuffer) {
       }
     }
 
-    // 2. Sostituzione atomica (tmp + rename) dei soli file JSON in whitelist.
+    // 2. Il catalogo: si chiude la connessione (le cache in memoria si
+    // svuotano e al prossimo accesso si rilegge il database nuovo), si toglie
+    // il vecchio con il suo WAL e si mette al suo posto quello preparato.
     restored = [];
+    closeDb();
+    removeDatabaseFiles(catalogPath);
+    renameSync(incoming, catalogPath);
+    restored.push(DB_FILE_NAME);
+
+    // 3. Sostituzione atomica (tmp + rename) degli altri file dati in whitelist.
     for (const name of BACKUP_JSON_FILES) {
       if (!jsonByName.has(name)) continue;
       const dest = dataFilePath(name);
@@ -167,11 +225,10 @@ export function restoreBackup(zipBuffer) {
       restored.push(name);
     }
 
-    // 3. Immagini (copertine/avatar): scrittura atomica nel basename validato.
+    // 4. Immagini (copertine/avatar): scrittura atomica nel basename validato.
     restoredImages = 0;
     for (const img of imageEntries) {
-      // M98 — il commento diceva «getPaths crea la cartella se manca»: non è più
-      // vero, risolvere un percorso non tocca il disco. La si assicura qui.
+      // M98 — risolvere un percorso non tocca il disco: la cartella si assicura qui.
       const dir = imageDirPath(img.prefix);
       mkdirSync(dir, { recursive: true });
       const dest = path.join(dir, img.base);
@@ -181,8 +238,11 @@ export function restoreBackup(zipBuffer) {
       restoredImages++;
     }
   } finally {
+    removeDatabaseFiles(incoming);
     release();
   }
 
+  // Il catalogo si ricarica da sé (vedi closeDb); il riavvio serve ancora per
+  // conf.json e lo storico dei job, che i processi leggono all'avvio.
   return { restored, restoredImages, backedUp, safetyDir, requiresRestart: true };
 }

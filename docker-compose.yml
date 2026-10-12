@@ -4,9 +4,11 @@
 #
 # M97/M98 — due mount, che sono due cose diverse e stanno in due posti diversi:
 #
-#   <la tua libreria>  →  /library   data/ (libreria.json, conf.json, metadata,
-#                                    jobs), videos/, thumbnails/, avatars/.
-#                                    Vive dove vuoi, con percorso ASSOLUTO.
+#   <la tua libreria>  →  /library   data/ (libreria.db, conf.json, jobs),
+#                                    videos/, thumbnails/, avatars/.
+#                                    Vive dove vuoi, con percorso ASSOLUTO, ma
+#                                    su un disco LOCALE: il catalogo è SQLite.
+#                                    I video possono stare su un NAS (/videos).
 #   ./config           →  /config    le impostazioni di QUESTA applicazione
 #                                    (web.json: qualità, parallelismo, porta).
 #

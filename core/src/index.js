@@ -165,7 +165,7 @@ export {
   prepareSingleVideoDownload,
   // M55: analisi del ri-download di un video già in catalogo (scelta audio)
   analyzeVideoDownload,
-  // metadati grezzi consolidati (data/metadata.json)
+  // metadati grezzi consolidati (tabella metadata di data/libreria.db)
   getRawMetadata,
   // "Aggiorna metadati": ri-scarica metadati+copertina (ri-verifica i rimossi)
   refreshVideoMetadata,

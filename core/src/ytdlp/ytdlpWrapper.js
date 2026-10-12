@@ -214,7 +214,7 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}
     '--write-thumbnail',
     '--convert-thumbnails', 'jpg',
     // info.json e thumbnail finiscono entrambi in media/thumbnails/<id>.*; il
-    // sidecar .info.json viene poi consolidato in data/metadata.json e cancellato.
+    // sidecar .info.json viene poi consolidato nei metadati del catalogo e cancellato.
     '-o', path.join(paths.thumbnailsDir, '%(id)s.%(ext)s')
   ];
   if (paths.ffmpegLocation) args.push('--ffmpeg-location', paths.ffmpegLocation);
@@ -250,7 +250,7 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}
 
 // Risolve la foto profilo di un canale interrogando l'URL del canale stesso
 // (M14): i metadati per-video (mapInfoJsonToVideoFields) non contengono
-// alcun campo avatar (verificato su data/metadata.json reale), quindi serve
+// alcun campo avatar (verificato sui metadati grezzi di una libreria reale), quindi serve
 // un'interrogazione dedicata. --playlist-items 0 evita di enumerare i video
 // del canale, economico come getPlaylistEntries.
 export async function resolveChannelAvatar(channelUrl) {
@@ -394,7 +394,7 @@ function isoDateFromYyyymmdd(yyyymmdd) {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
 
-// Salva il metadato grezzo in data/metadata.json (unica fonte, non più sparso
+// Salva il metadato grezzo nel catalogo (tabella metadata, unica fonte, non più sparso
 // accanto a ogni video) e cancella il sidecar .info.json scritto da yt-dlp.
 async function consolidateMetadata(videoId, info, infoFilePath) {
   await setMetadata(videoId, info);
