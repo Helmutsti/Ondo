@@ -17,6 +17,8 @@ import { searchVideos } from './services/searchService.js';
 import { reorganizeLibrary, deleteVideoFile, deleteVideoCompletely, removeVideoFromLibrary } from './services/libraryService.js';
 import { syncChannelAvatars, getChannelAvatarMap } from './services/channelAvatarService.js';
 import { createBackup, restoreBackup } from './services/backupService.js';
+import { startBackupScheduler } from './services/backupScheduler.js';
+import { clearScratch, scratchRoot } from './lib/scratch.js';
 import { mergeLibrary } from './services/mergeService.js';
 import { loadLibraryConfig, getPaths, getToolPaths, updateLibraryConfig, setVideosRoot, clearVideosRoot, getCookiesStatus, saveCookiesFile, deleteCookiesFile, expectedToolNames } from './config.js';
 import { loadAppConfig, updateAppConfig, setAppId, getAppId, appConfigPath, appConfigDir } from './appConfig.js';
@@ -184,6 +186,11 @@ export {
   // backup/ripristino del catalogo in .zip (M36)
   createBackup,
   restoreBackup,
+  // backup periodico in ONDO_BACKUP_DIR (solo server)
+  startBackupScheduler,
+  // area di lavoro locale dei download (ONDO_SCRATCH_DIR)
+  clearScratch,
+  scratchRoot,
   // fusione di una libreria esterna dentro quella corrente: mai i video
   // fisici, solo metadati/copertine/avatar, il più completo vince
   mergeLibrary,

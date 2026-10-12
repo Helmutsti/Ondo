@@ -41,10 +41,22 @@ services:
       # Le impostazioni di QUESTA applicazione (web.json, creato al primo
       # avvio): relativo, perché appartengono a questo compose.
       - ./config:/config
+      # Area di lavoro dei download: volume Docker senza binding, sul disco
+      # della macchina che fa girare il container. yt-dlp scarica, fonde e
+      # verifica qui; nella libreria (e nei video, anche se su un NAS) arriva
+      # solo il file finito, con una sola scrittura. Il contenuto è
+      # usa-e-getta: si svuota a ogni avvio. Serve spazio libero per i video
+      # in corso — circa 2× il video più grande per ogni download parallelo.
+      - scratch:/scratch
       # (Facoltativo) I video su un disco separato dal resto della libreria:
       # monta la cartella e poi imposta "videosRoot" in
       # library/data/conf.json — è l'unico percorso che il file contiene.
       # - D:\Video:/videos
+      #
+      # (Facoltativo) Backup automatico della libreria (catalogo, copertine,
+      # avatar; non i video) in una cartella, tipicamente sul NAS quando la
+      # libreria sta su un disco locale. Attivalo con ONDO_BACKUP_DIR qui sotto.
+      # - /mnt/nas/ondo-backup:/backups
       #
       # (Facoltativo) yt-dlp/ffmpeg/ffprobe sono GIÀ dentro l'immagine. Se vuoi
       # imporre una TUA versione senza aspettare un'immagine nuova, non serve un
@@ -56,3 +68,12 @@ services:
       # (Facoltativo) cookie YouTube per video privati/non listati — si può
       # anche caricare dalla web app, in Impostazioni:
       # - ./cookies.txt:/app/core/cookies.txt
+    # environment:
+    #   # Backup automatico (vedi il mount /backups sopra): ogni quante ore e
+    #   # quanti zip tenere. Senza ONDO_BACKUP_DIR non parte.
+    #   ONDO_BACKUP_DIR: /backups
+    #   ONDO_BACKUP_EVERY_HOURS: "24"
+    #   ONDO_BACKUP_KEEP: "14"
+
+volumes:
+  scratch:

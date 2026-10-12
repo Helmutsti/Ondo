@@ -10,6 +10,7 @@ import { loadAppConfig } from '../appConfig.js';
 import { setMetadata } from '../catalog/metadataStore.js';
 import { probeResolution } from './probe.js';
 import { removeFromDownloadArchive } from '../services/libraryService.js';
+import { stagingDirFor, removeStagingDir, moveFile } from '../lib/scratch.js';
 
 // YouTube richiede un runtime JavaScript per decifrare le firme dei formati
 // video: senza, alcuni download falliscono con HTTP 403 a metà (verificato).
@@ -571,6 +572,37 @@ export async function downloadVideo(videoId, url, { onLog = () => {}, onProgress
   // dedup per le sync di playlist, ma non blocca mai un download esplicito).
   removeFromDownloadArchive(paths, videoId);
 
+  // Con l'area di lavoro attiva (ONDO_SCRATCH_DIR, vedi lib/scratch.js) tutto
+  // il download — .part, flussi separati, fusione, hash, ffprobe — avviene in
+  // una cartella locale con la stessa struttura della libreria; solo il video
+  // finito e la copertina arrivano poi nella libreria. L'archivio di yt-dlp e
+  // i metadati restano quelli veri: `work` cambia solo videosDir/thumbnailsDir.
+  const stagingDir = stagingDirFor(videoId);
+  const work = stagingDir
+    ? { ...paths, videosDir: path.join(stagingDir, 'videos'), thumbnailsDir: path.join(stagingDir, 'thumbnails') }
+    : paths;
+  const fields = await downloadInto(work, videoId, url, { onLog, onProgress, signal, audioStrategy, config, maxHeight: effectiveMaxHeight });
+  if (stagingDir) {
+    onLog('Sposto il video nella libreria...');
+    await promoteStaged(work, paths, fields);
+    removeStagingDir(stagingDir);
+  }
+  return fields;
+}
+
+// Porta nella libreria i file di un download completato nell'area di lavoro.
+// I percorsi in `fields` sono già relativi (video a videosDir, copertina a
+// thumbnailsDir), quindi valgono identici dall'altra parte.
+async function promoteStaged(work, paths, fields) {
+  const videoRel = fields.video.localPath;
+  await moveFile(path.join(work.videosDir, videoRel), path.join(paths.videosDir, videoRel));
+  const thumb = fields.thumbnail?.localPath;
+  if (thumb && existsSync(path.join(work.thumbnailsDir, thumb))) {
+    await moveFile(path.join(work.thumbnailsDir, thumb), path.join(paths.thumbnailsDir, thumb));
+  }
+}
+
+async function downloadInto(paths, videoId, url, { onLog, onProgress, signal, audioStrategy, config, maxHeight: effectiveMaxHeight }) {
   // M55 — Opzione B: video max + audio fuso via ffmpeg (yt-dlp da solo non sa
   // prendere l'audio da un formato combinato in un merge -f, verificato).
   if (audioStrategy === 'merged') {

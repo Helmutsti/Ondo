@@ -2,7 +2,7 @@ import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot } from '@catalog/core';
+import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot, clearScratch, scratchRoot, startBackupScheduler } from '@catalog/core';
 import { videosRouter } from './routes/videos.routes.js';
 import { sourcesRouter } from './routes/sources.routes.js';
 import { jobsRouter } from './routes/jobs.routes.js';
@@ -97,6 +97,16 @@ reportToolsOnStartup();
 // insieme a quante CLI si vuole finché tutte leggono soltanto. Qui si imposta
 // solo il ruolo mostrato nel messaggio a chi trova il lock occupato.
 setLockRole('server');
+
+// Area di lavoro dei download (ONDO_SCRATCH_DIR): quello che c'è dentro è di
+// job che con questo processo non esistono più, quindi si svuota all'avvio.
+if (scratchRoot()) {
+  const removed = clearScratch();
+  console.log(`Area di lavoro dei download: ${scratchRoot()}${removed ? ` (svuotata, ${removed} residui)` : ''}.`);
+}
+
+// Backup periodico della libreria, se ONDO_BACKUP_DIR è impostata.
+startBackupScheduler();
 
 const config = loadAppConfig();
 app.listen(config.port, host, () => {

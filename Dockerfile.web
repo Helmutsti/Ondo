@@ -145,6 +145,11 @@ ENV ONDO_CONFIG_DIR=/config
 # cartella in cui ti trovi», e la cartella di lavoro del container è /app, che
 # non è una libreria. Senza questa variabile il server si fermerebbe all'avvio.
 ENV ONDO_LIBRARY=/library
+# Area di lavoro locale dei download (core/src/lib/scratch.js): yt-dlp e ffmpeg
+# lavorano qui e nella libreria arriva solo il file finito. Conta quando la
+# libreria o i video stanno su un NAS; il docker-compose.yml ci monta un volume
+# Docker suo, senza binding. Svuotata a ogni avvio del server.
+ENV ONDO_SCRATCH_DIR=/scratch
 
 # ca-certificates per le connessioni TLS (miniature, avatar, API di YouTube via
 # yt-dlp). ffmpeg NON arriva più da apt: quello di Debian 12 è la 5.1.x, mentre
