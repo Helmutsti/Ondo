@@ -2,7 +2,7 @@ import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot, clearScratch, scratchRoot, startBackupScheduler } from '@catalog/core';
+import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot, openCatalog, clearScratch, scratchRoot, startBackupScheduler } from '@catalog/core';
 import { videosRouter } from './routes/videos.routes.js';
 import { sourcesRouter } from './routes/sources.routes.js';
 import { jobsRouter } from './routes/jobs.routes.js';
@@ -28,6 +28,10 @@ if (!isLibrary(library)) {
   const { created } = initLibrary(library);
   console.log(`Libreria inizializzata in ${library} (${created.length} elementi creati).`);
 }
+// Il catalogo si apre subito: una libreria delle versioni precedenti viene
+// convertita in SQLite qui, all'avvio, e se il database non si legge il server
+// si ferma con l'errore invece di partire e fallire a ogni richiesta.
+openCatalog();
 
 const app = express();
 app.use(express.json());

@@ -19,6 +19,7 @@ import { syncChannelAvatars, getChannelAvatarMap } from './services/channelAvata
 import { createBackup, restoreBackup } from './services/backupService.js';
 import { startBackupScheduler } from './services/backupScheduler.js';
 import { clearScratch, scratchRoot } from './lib/scratch.js';
+import { getDb } from './catalog/db.js';
 import { mergeLibrary } from './services/mergeService.js';
 import { loadLibraryConfig, getPaths, getToolPaths, updateLibraryConfig, setVideosRoot, clearVideosRoot, getCookiesStatus, saveCookiesFile, deleteCookiesFile, expectedToolNames } from './config.js';
 import { loadAppConfig, updateAppConfig, setAppId, getAppId, appConfigPath, appConfigDir } from './appConfig.js';
@@ -75,6 +76,14 @@ registerJobHandler('addVideo', addVideoJob);
 // solo, così ogni link occupa un posto del pool e `jobs.parallel` conta davvero.
 // Interrompibile come gli altri due job di download vero.
 registerJobHandler('quickDownload', quickDownloadJob, { interruptible: true });
+
+
+// Apre il catalogo della libreria corrente, convertendo in SQLite una libreria
+// delle versioni precedenti. Il server lo fa all'avvio, così una conversione o
+// un database illeggibile si vedono subito e non alla prima richiesta.
+function openCatalog() {
+  getDb();
+}
 
 export {
   // catalogo
@@ -186,6 +195,8 @@ export {
   // backup/ripristino del catalogo in .zip (M36)
   createBackup,
   restoreBackup,
+  // apre il catalogo all'avvio (vedi openCatalog sopra)
+  openCatalog,
   // backup periodico in ONDO_BACKUP_DIR (solo server)
   startBackupScheduler,
   // area di lavoro locale dei download (ONDO_SCRATCH_DIR)
