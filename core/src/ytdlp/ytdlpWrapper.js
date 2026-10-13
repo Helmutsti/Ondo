@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -47,6 +47,36 @@ const JS_RUNTIME_ARGS = [
 // con esso incluso, il selettore torna a prendere 248+140 = 1080p. Anch'esso
 // supplementare: aggiunge opzioni, non sostituisce nulla.
 const PLAYER_CLIENT_ARGS = ['--extractor-args', 'youtube:player_client=default,android_vr,web_embedded'];
+
+// Siti fuori da YouTube dietro un filtro anti-bot che guarda l'impronta TLS
+// (Rumble): yt-dlp dichiara uno User-Agent di Chrome ma "parla" come Python,
+// e il filtro risponde 403 — a caso, più spesso da Linux (verificato: 6 video
+// Rumble su 8 rifiutati senza, 8 su 8 riusciti con). Con --impersonate yt-dlp
+// imita davvero Chrome (curl_cffi, incluso nei binari ufficiali). Solo dove
+// serve, e solo se il yt-dlp installato lo supporta: altrimenti l'opzione
+// farebbe fallire anche ciò che oggi funziona.
+const IMPERSONATE_HOSTS = /(^|\.)rumble\.com$/i;
+let impersonateSupport = null; // { bin, ok } in cache per binario
+
+function canImpersonate(bin) {
+  if (impersonateSupport?.bin === bin) return impersonateSupport.ok;
+  let ok = false;
+  try {
+    const r = spawnSync(bin, ['--list-impersonate-targets'], { encoding: 'utf-8', timeout: 20000 });
+    // Le righe dei target disponibili citano curl_cffi senza "(unavailable)".
+    ok = r.status === 0 && /chrome[^\n]*curl_cffi/i.test(r.stdout ?? '') && !/chrome[^\n]*unavailable/i.test(r.stdout ?? '');
+  } catch { ok = false; }
+  impersonateSupport = { bin, ok };
+  return ok;
+}
+
+/** Gli argomenti per imitare un browser, se questo URL ne ha bisogno e yt-dlp lo sa fare. */
+export function impersonateArgs(url, bin = getPaths().ytdlpBinaryPath) {
+  let host = '';
+  try { host = new URL(url).hostname; } catch { return []; }
+  if (!IMPERSONATE_HOSTS.test(host)) return [];
+  return canImpersonate(bin) ? ['--impersonate', 'chrome'] : [];
+}
 
 // Cosa vuol dire un errore di yt-dlp per lo stato di un video (privato,
 // rimosso, bloccato, rete…) lo decide errorClassifier.js, e la presenza la
@@ -139,7 +169,7 @@ export async function resolveVideoInfo(url) {
   const paths = getPaths();
   const args = [...JS_RUNTIME_ARGS, ...PLAYER_CLIENT_ARGS, '--skip-download', '-J'];
   if (paths.cookiesPath) args.push('--cookies', paths.cookiesPath);
-  args.push(url);
+  args.push(...impersonateArgs(url, paths.ytdlpBinaryPath), url);
 
   const stdout = await new Promise((resolve, reject) => {
     const proc = spawn(paths.ytdlpBinaryPath, args);
@@ -241,7 +271,7 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {}, outDi
   // del video dalla CDN (dove il mix cookie+android_vr darebbe 403), quindi si
   // includono se presenti, come in resolveVideoInfo.
   if (paths.cookiesPath) args.push('--cookies', paths.cookiesPath);
-  args.push(url);
+  args.push(...impersonateArgs(url, paths.ytdlpBinaryPath), url);
 
   await runYtdlp(paths, args, { onLog, onProgress: () => {} });
 
@@ -276,7 +306,7 @@ export async function resolveChannelAvatar(channelUrl) {
   const paths = getPaths();
   const args = [...JS_RUNTIME_ARGS, '--playlist-items', '0', '-J'];
   if (paths.cookiesPath) args.push('--cookies', paths.cookiesPath);
-  args.push(channelUrl);
+  args.push(...impersonateArgs(channelUrl, paths.ytdlpBinaryPath), channelUrl);
 
   const stdout = await new Promise((resolve, reject) => {
     const proc = spawn(paths.ytdlpBinaryPath, args);
@@ -532,7 +562,7 @@ function buildDownloadArgs(paths, config, formatSelector, url, { useCookies }) {
   if (useCookies && paths.cookiesPath) {
     args.push('--cookies', paths.cookiesPath);
   }
-  args.push(url);
+  args.push(...impersonateArgs(url, paths.ytdlpBinaryPath), url);
   return args;
 }
 
@@ -808,7 +838,7 @@ function buildAudioOnlyArgs(paths, outTemplate, url, { useCookies }) {
   ];
   if (paths.ffmpegLocation) args.push('--ffmpeg-location', paths.ffmpegLocation);
   if (useCookies && paths.cookiesPath) args.push('--cookies', paths.cookiesPath);
-  args.push(url);
+  args.push(...impersonateArgs(url, paths.ytdlpBinaryPath), url);
   return args;
 }
 
