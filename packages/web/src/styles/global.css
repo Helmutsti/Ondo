@@ -834,42 +834,161 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .job-hist-outcome { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 .job-hist-outcome.err { color: var(--st-failed); }
 
-/* ===== Sidebar disclosure on mobile ===== */
-.mobile-nav { display: none; }
+/* ===== Elementi solo desktop / solo mobile ===== */
+.mobile-nav, .label-short { display: none; }
 
+/* ===== Schermo stretto (telefono, tablet in verticale) =====
+   Regole di base: niente deve essere più largo dello schermo (lo sforamento
+   orizzontale su iPhone rimpicciolisce tutta la pagina e taglia la barra in
+   basso), i campi di testo a 16px (sotto, Safari iOS zooma al tocco), e le
+   zone sicure dell'iPhone (notch, barra home) rispettate con env(). */
 @media (max-width: 880px) {
+  html, body { overflow-x: clip; }
+  .desktop-only { display: none !important; }
+  .label-long { display: none; }
+  .label-short { display: inline; }
+
+  /* Barra in alto: logo più piccolo, ricerca che si restringe davvero (un
+     <input> ha una larghezza minima propria: senza min-width:0 allargava la
+     pagina di 15-45px su ogni schermata). */
+  .topbar {
+    height: auto; min-height: 54px; gap: 12px;
+    padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  }
+  .logo img { height: 30px; }
+  .search-box { min-width: 0; max-width: none; height: 38px; padding: 0 12px; margin: 8px 0; }
+  .search-box input { min-width: 0; width: 100%; font-size: 16px; }
+
   .sidebar { display: none; }
-  .main { padding: 16px 14px 84px; }
+  .main { padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); }
+
+  /* Barra di navigazione in basso, cinque voci della stessa larghezza. */
   .mobile-nav {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    height: 56px;
-    background: var(--bg);
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding: 0 6px env(safe-area-inset-bottom);
+    background: color-mix(in oklch, var(--bg) 97%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border2);
     align-items: center;
-    justify-content: space-around;
     z-index: 30;
   }
-  .mobile-nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; color: var(--faint); }
-  .mobile-nav a.active { color: var(--ink); }
-  .mobile-nav .plus {
-    width: 40px; height: 28px; border-radius: 8px; background: var(--accent);
-    display: flex; align-items: center; justify-content: center; color: var(--accent-contrast);
+  .mobile-nav > a, .mobile-nav > button {
+    flex: 1; min-width: 0; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font-size: 10.5px; font-weight: 500; color: var(--faint);
+    background: none; border: none; padding: 0; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
-  .grid { grid-template-columns: 1fr; }
-  .detail-body { flex-direction: column; }
+  .mobile-nav > a.active, .mobile-nav > button.active { color: var(--ink); }
+  .mobile-nav .plus { flex: none; width: 56px; }
+  .mobile-nav .plus svg {
+    box-sizing: content-box; padding: 6px 12px; border-radius: 12px;
+    background: var(--accent); color: var(--accent-contrast);
+  }
 
-  /* Cronologia: la colonna destra fissa (260px) non ci sta in uno schermo
-     stretto — impilata sotto, a tutta larghezza, invece che a fianco. */
-  .job-hist-row { flex-wrap: wrap; }
-  .job-hist-cover { width: 100%; height: 130px; }
-  .job-hist-body { flex: 1 1 100%; padding: 12px 14px; }
+  /* Pannello "Menu" dal basso: Impostazioni + creator. */
+  .sheet-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,.55);
+    display: flex; align-items: flex-end;
+    animation: fade-in .15s ease;
+  }
+  .sheet {
+    width: 100%; max-height: 78vh; display: flex; flex-direction: column;
+    background: var(--panel); border-top: 1px solid var(--border);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-up .2s ease;
+  }
+  .sheet-head { position: relative; display: flex; justify-content: center; padding: 10px 12px 4px; }
+  .sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--border); margin-top: 2px; }
+  .sheet-close {
+    position: absolute; right: 10px; top: 6px; width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel2); border: none; color: var(--ink2); cursor: pointer;
+  }
+  .sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .sheet-body .side-item { font-size: 15px; padding: 11px 12px; }
+  .side-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Intestazioni: azioni a capo invece che fuori dallo schermo. */
+  .page-head { gap: 10px 14px; margin-bottom: 14px; }
+  .page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Home: chip scorrevoli fino al bordo, filtri a tutta larghezza. */
+  .chips { margin: 0 -14px 16px; padding: 0 14px 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .filter-bar { gap: 8px; margin-bottom: 16px; }
+  .filter-bar select { flex: 1 1 150px; min-width: 0; height: 40px; font-size: 16px; }
+
+  /* Griglia: una colonna sul telefono, due quando ci stanno (tablet). */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 20px 14px; }
+  .kebab { padding: 8px; }
+  .menu-item { padding: 11px 12px; font-size: 14px; }
+
+  /* Dettaglio video: player da bordo a bordo, come nelle app video. */
+  .detail-body { flex-direction: column; gap: 18px; }
+  .player-col, .side-related { min-width: 0; width: 100%; flex: none; }
+  .player-col .player-frame { margin: -14px -14px 0; border-radius: 0; }
+  .d-title { font-size: 18px; margin-top: 14px; }
+  .d-actions { margin-left: 0; width: 100%; gap: 8px; }
+  .d-actions .btn { padding: 9px 13px; }
+  .d-desc { padding: 14px; }
+  .tech-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Sorgenti: campo e bottone uno sotto l'altro, a tutta larghezza. */
+  .add-panel { padding: 16px; margin-bottom: 26px; }
+  .add-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .add-row input { flex: none; width: 100%; height: 48px; font-size: 16px; }
+  .add-row .btn-primary { justify-content: center; }
+  .source-line { flex-wrap: wrap; gap: 10px 12px; padding: 14px 16px; }
+  .source-line-main { flex: 1 1 100%; }
+  .source-line .actions { margin-left: auto; }
+  .source-line-progress, .source-line-result { padding: 0 16px 14px; }
+  .sources-summary, .sources-panel { margin-bottom: 28px; }
+
+  /* Cronologia: copertina a sinistra, esito sotto, tutto dentro lo schermo. */
+  .job-hist-row { flex-wrap: wrap; min-height: 0; }
+  .job-hist-cover { width: 112px; height: auto; min-height: 63px; }
+  .job-hist-body { flex: 1 1 0; padding: 10px 40px 10px 12px; gap: 6px; }
+  .job-hist-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13.5px; }
   .job-hist-side {
     width: 100%; border-left: none; border-top: 1px solid var(--border2);
-    align-items: flex-start; text-align: left; padding: 12px 14px;
+    align-items: flex-start; text-align: left; padding: 10px 12px;
   }
   .job-hist-side .progress-bar { width: 100%; }
+
+  /* Pagina creator. */
+  .chan-head { gap: 14px; align-items: center; padding: 0; }
+  .chan-avatar { width: 72px; height: 72px; font-size: 28px; border-width: 0; flex: none; }
+  .chan-head > div:nth-child(2) { min-width: 0; }
+  .chan-name { font-size: 18px; margin-bottom: 4px; overflow-wrap: anywhere; }
+  .chan-count { margin-bottom: 0; }
+
+  /* Impostazioni e moduli. */
+  .field { max-width: none; }
+  .field input, .field select { font-size: 16px; }
+  .setting-row { gap: 12px; }
+
+  /* Notifiche in alto a tutta larghezza; finestre di dialogo dal basso. */
+  .toast-host { top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px; max-width: none; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal {
+    max-width: none; border-radius: 18px 18px 0 0;
+    padding: 20px 18px calc(18px + env(safe-area-inset-bottom));
+    max-height: 88vh; overflow-y: auto;
+  }
+  .modal-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay, .sheet { animation: none; }
 }
 
 /* Selezione multipla in Libreria (M28) */

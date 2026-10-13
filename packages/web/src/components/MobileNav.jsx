@@ -1,18 +1,81 @@
-import { NavLink } from 'react-router-dom';
-import { Home, Rss, Plus, Archive, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Home, Rss, Plus, Archive, Menu, Settings, X } from 'lucide-react';
 
-// "Job" rimossa insieme alla pagina omonima (M40): la Cronologia vera vive in
-// fondo a Sorgenti. Sostituita con "Archiviati" per rispecchiare la sidebar
-// desktop (Home · Sorgenti · Archiviati · Impostazioni).
-export function MobileNav() {
+// Barra in basso su schermo stretto: le voci della sidebar desktop (Home ·
+// Sorgenti · Archiviati) più "+" per aggiungere un link e "Menu", che apre un
+// pannello dal basso con quello che non ci sta — Impostazioni e i creator, che
+// su mobile prima non erano raggiungibili affatto. La ricerca resta nella barra
+// in alto, sempre visibile: una voce "Cerca" qui la duplicava.
+export function MobileNav({ channels = [] }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
   const cls = ({ isActive }) => (isActive ? 'active' : '');
+
+  // Il pannello si chiude da sé a ogni cambio di pagina (anche dal tasto
+  // indietro), così non resta aperto sopra la pagina appena raggiunta.
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
+  // Sfondo fermo mentre il pannello è aperto: senza, su iPhone scorre la
+  // pagina sotto invece dell'elenco dei creator.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/channels/');
+
   return (
-    <nav className="mobile-nav">
-      <NavLink to="/" end className={cls}><Home size={17} />Home</NavLink>
-      <NavLink to="/sources" className={cls}><Rss size={17} />Sorgenti</NavLink>
-      <NavLink to="/sources" className="plus"><Plus size={20} /></NavLink>
-      <NavLink to="/archived" className={cls}><Archive size={17} />Archiviati</NavLink>
-      <NavLink to="/search" className={cls}><Search size={17} />Cerca</NavLink>
-    </nav>
+    <>
+      <nav className="mobile-nav">
+        <NavLink to="/" end className={cls}><Home size={20} /><span>Home</span></NavLink>
+        <NavLink to="/sources" className={cls}><Rss size={20} /><span>Sorgenti</span></NavLink>
+        {/* "+" porta al campo "Aggiungi" di Sorgenti, già attivo (vedi
+            SourcesPage: location.state.focusAdd). */}
+        <NavLink to="/sources" state={{ focusAdd: true }} className="plus" aria-label="Aggiungi playlist o video">
+          <Plus size={22} />
+        </NavLink>
+        <NavLink to="/archived" className={cls}><Archive size={20} /><span>Archiviati</span></NavLink>
+        <button type="button" className={inMenu || menuOpen ? 'active' : ''} onClick={() => setMenuOpen(true)} aria-expanded={menuOpen}>
+          <Menu size={20} /><span>Menu</span>
+        </button>
+      </nav>
+
+      {menuOpen && (
+        <div className="sheet-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="sheet" role="dialog" aria-label="Menu" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-head">
+              <span className="sheet-grip" aria-hidden="true" />
+              <button type="button" className="sheet-close" onClick={() => setMenuOpen(false)} aria-label="Chiudi menu">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="sheet-body">
+              <NavLink to="/settings" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
+                <Settings size={18} />Impostazioni
+              </NavLink>
+              <div className="side-div"></div>
+              <div className="side-sec">Creator</div>
+              {channels.length === 0 && <div className="side-empty">Nessun creator ancora</div>}
+              {channels.map((c) => (
+                <NavLink key={c.key} to={`/channels/${encodeURIComponent(c.key)}`} className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
+                  <span className="avatar">
+                    {c.avatarUrl ? <img className="avatar-photo" src={c.avatarUrl} alt="" /> : (c.name?.charAt(0)?.toUpperCase() ?? '?')}
+                  </span>
+                  <span className="side-label">{c.name}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

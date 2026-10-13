@@ -7,6 +7,7 @@ import {
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
 } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
+import { usePlaybackSource } from '../hooks/usePlaybackSource.js';
 
 // Mini-player desktop-only (scelta di scope M54): su schermo piccolo vale il
 // comportamento attuale (il video si ferma al cambio pagina), così non resta
@@ -36,6 +37,8 @@ export function MiniPlayer() {
   const location = useLocation();
   const navigate = useNavigate();
   const goToNext = useQueueAdvance();
+  // Il file così com'è o la sua versione HLS convertita (iPhone/Safari).
+  const playback = usePlaybackSource(current);
   const videoRef = useRef(null);
   const floatHomeRef = useRef(null);
 
@@ -172,7 +175,8 @@ export function MiniPlayer() {
         controls
         playsInline
         preload="metadata"
-        src={current.videoUrl || undefined}
+        src={playback.src || undefined}
+        onError={playback.onError}
         poster={current.thumbnailUrl || undefined}
         onLoadedMetadata={attemptAutoplay}
         onCanPlay={attemptAutoplay}

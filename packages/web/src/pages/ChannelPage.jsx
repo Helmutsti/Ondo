@@ -108,7 +108,7 @@ export function ChannelPage() {
 
   return (
     <>
-      <Link to="/" className="back-link"><ArrowLeft size={14} />Home</Link>
+      <Link to="/" className="back-link desktop-only"><ArrowLeft size={14} />Home</Link>
       <div className="chan-head" style={{ marginTop: 16 }}>
         <div className="chan-avatar">
           {avatarUrl ? <img className="avatar-photo" src={avatarUrl} alt="" /> : name.charAt(0).toUpperCase()}

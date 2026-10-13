@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { RefreshCw, Trash2, Plus, ImageIcon, ChevronDown } from 'lucide-react';
 import { listSources, removeSource, syncSources, syncChannelAvatars, getJob, triggerJob } from '../api/client.js';
 import { useJobStream } from '../hooks/useJobStream.js';
@@ -26,6 +27,13 @@ export function SourcesPage() {
   const [sources, setSources] = useState(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [url, setUrl] = useState('');
+  // "+" della barra mobile: arriva qui con state.focusAdd e trova il campo già
+  // attivo, pronto per incollare il link (vedi MobileNav).
+  const addInputRef = useRef(null);
+  const location = useLocation();
+  useEffect(() => {
+    if (location.state?.focusAdd) addInputRef.current?.focus();
+  }, [location.key, location.state]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -189,7 +197,7 @@ export function SourcesPage() {
     <>
       <div className="page-head">
         <h1>Sorgenti</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="page-actions">
           {sources?.length > 0 && (
             <button className="btn" disabled={busy || syncing} onClick={handleSyncAll}>
               <RefreshCw size={14} className={syncing ? 'spin' : undefined} />Sincronizza tutte
@@ -205,6 +213,10 @@ export function SourcesPage() {
         <div className="add-eyebrow">Aggiungi playlist o singolo video</div>
         <form className="add-row" onSubmit={handleAdd}>
           <input
+            ref={addInputRef}
+            inputMode="url"
+            autoCapitalize="off"
+            autoCorrect="off"
             placeholder="Incolla una playlist YouTube, oppure un link/id di un singolo video (anche Rumble…)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}

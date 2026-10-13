@@ -284,7 +284,7 @@ export function VideoDetailPage() {
   if (error) {
     return (
       <>
-        <Link to="/" className="back-link"><ArrowLeft size={14} />Home</Link>
+        <Link to="/" className="back-link desktop-only"><ArrowLeft size={14} />Home</Link>
         <div className="notice error" style={{ marginTop: 16 }}>{error}</div>
       </>
     );
@@ -326,7 +326,7 @@ export function VideoDetailPage() {
 
   return (
     <>
-      <Link to="/" className="back-link"><ArrowLeft size={14} />Home</Link>
+      <Link to="/" className="back-link desktop-only"><ArrowLeft size={14} />Home</Link>
       <div className="detail-body" style={{ marginTop: 16 }}>
         <div className="player-col">
           <div className="player-frame">
@@ -394,7 +394,7 @@ export function VideoDetailPage() {
                 <Star size={18} fill={video.favorite ? 'currentColor' : 'none'} />
               </button>
               {isDownloaded && miniEnabled && !(player.minimized && player.current?.id === video.id) && (
-                <button className="btn" onClick={handleMinimize} title="Minimizza nel riquadro flottante">
+                <button className="btn desktop-only" onClick={handleMinimize} title="Minimizza nel riquadro flottante">
                   <Minimize2 size={14} />
                   Minimizza
                 </button>
@@ -402,7 +402,7 @@ export function VideoDetailPage() {
               {isDownloaded && document.pictureInPictureEnabled && (
                 <button className="btn" onClick={togglePiP}>
                   <PictureInPicture2 size={14} />
-                  {isPiP ? 'Esci da PiP' : 'Picture in Picture'}
+                  {isPiP ? 'Esci da PiP' : <><span className="label-long">Picture in Picture</span><span className="label-short">PiP</span></>}
                 </button>
               )}
               {isDownloaded && (
