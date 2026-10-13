@@ -275,7 +275,7 @@ export function SettingsPage() {
 
       <div className="d-desc">
         <span className="label">Cookie YouTube</span>
-        Necessari per i video privati/non listati del tuo account o con limite d'età. Esporta i cookie dal browser (es. estensione "Get cookies.txt") mentre sei loggato su YouTube, poi caricali qui — sostituiscono quelli attuali, effetto immediato (nessun riavvio). Il file non viene mai versionato né incluso nel backup.
+        Necessari per i video privati/non listati del tuo account o con limite d'età. Esporta i cookie dal browser (es. estensione "Get cookies.txt") mentre sei loggato su YouTube, poi caricali qui — sostituiscono quelli attuali, effetto immediato (nessun riavvio), e restano anche dopo un aggiornamento. Il file non viene mai versionato né incluso nel backup.
         {cookiesStatus && (
           <div style={{ marginTop: 12, fontSize: 12.5 }}>
             {cookiesStatus.present

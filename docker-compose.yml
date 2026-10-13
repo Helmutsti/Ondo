@@ -67,9 +67,9 @@ services:
       # dell'immagine. Nomi attesi su Linux: yt-dlp_linux, ffmpeg, ffprobe —
       # NON i .exe di un'installazione Windows, che nel container non partono.
       #
-      # (Facoltativo) cookie YouTube per video privati/non listati — si può
-      # anche caricare dalla web app, in Impostazioni:
-      # - ./cookies.txt:/app/core/cookies.txt
+      # (Facoltativo) cookie YouTube per video privati/non listati: caricali
+      # dalla web app (Impostazioni), oppure metti il file in config/cookies.txt
+      # qui accanto — già montata su /config, sopravvive agli aggiornamenti.
     # environment:
     #   # Backup automatico (vedi il mount /backups sopra): ogni quante ore e
     #   # quanti zip tenere. Senza ONDO_BACKUP_DIR non parte.

@@ -124,7 +124,7 @@ export const setDefaultQuality = ({ kind, height }) =>
 export const setParallel = (parallel) =>
   request('/api/config/parallel', { method: 'POST', body: JSON.stringify({ parallel }) });
 
-// Cookie YouTube (core/cookies.txt): corpo grezzo del file .txt, nessun riavvio richiesto.
+// Cookie YouTube (<config>/cookies.txt): corpo grezzo del file .txt, nessun riavvio richiesto.
 export const uploadCookies = (text) =>
   request('/api/config/cookies', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text });
 export const deleteCookies = () => request('/api/config/cookies', { method: 'DELETE' });

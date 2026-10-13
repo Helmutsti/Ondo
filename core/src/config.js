@@ -4,7 +4,7 @@ import { acquireDataLock } from './lock.js';
 import { inPath, findVlc } from './lib/which.js';
 import { INSTALL_ROOT, CORE_DIR } from './lib/installRoot.js';
 import { deepMerge } from './lib/deepMerge.js';
-import { loadAppConfig } from './appConfig.js';
+import { loadAppConfig, appConfigDir } from './appConfig.js';
 import { DATA_DIR_NAME, CATALOG_FILE_NAME, LIBRARY_CONFIG_FILE_NAME, libraryRoot, toolsRoot } from './library.js';
 
 // M96 — il file di configurazione della LIBRERIA contiene UNA cosa sola: dove
@@ -135,29 +135,50 @@ export function clearVideosRoot() {
 }
 
 // Cookie per YouTube (video privati/non listati/con limite d'età) — file
-// Netscape cookie-jar esportato dal browser, path fisso `core/cookies.txt`
-// (mai in git, vedi .gitignore). getPaths() lo rileva da solo a ogni chiamata
-// (existsSync su questo stesso percorso): niente riavvio dopo un
-// upload/cancellazione, il prossimo comando yt-dlp lo vede già.
-const DEFAULT_COOKIES_PATH = path.join(CORE_DIR, 'cookies.txt');
+// Netscape cookie-jar esportato dal browser. Vive accanto alle impostazioni
+// dell'applicazione (`<config>/cookies.txt`, in Docker /config, già un
+// volume): prima stava in `core/cookies.txt`, DENTRO l'immagine, e spariva a
+// ogni aggiornamento del container. Il vecchio percorso si legge ancora, così
+// un'installazione che lo usa non perde i cookie; il primo upload li scrive
+// nel posto nuovo. getPaths() lo rileva a ogni chiamata: niente riavvio dopo
+// un upload/cancellazione, il prossimo comando yt-dlp lo vede già.
+const LEGACY_COOKIES_PATH = path.join(CORE_DIR, 'cookies.txt');
+
+function cookiesFilePath() {
+  return path.join(appConfigDir(), 'cookies.txt');
+}
+
+/** Il file dei cookie in uso, o null: quello nuovo, altrimenti il vecchio. */
+function activeCookiesPath() {
+  const current = cookiesFilePath();
+  if (existsSync(current)) return current;
+  return existsSync(LEGACY_COOKIES_PATH) ? LEGACY_COOKIES_PATH : null;
+}
 
 export function getCookiesStatus() {
-  if (!existsSync(DEFAULT_COOKIES_PATH)) return { present: false, updatedAt: null };
-  return { present: true, updatedAt: statSync(DEFAULT_COOKIES_PATH).mtime.toISOString() };
+  const active = activeCookiesPath();
+  if (!active) return { present: false, updatedAt: null };
+  return { present: true, updatedAt: statSync(active).mtime.toISOString() };
 }
 
 export function saveCookiesFile(content) {
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('File cookie vuoto o non valido.');
   }
-  const tmp = `${DEFAULT_COOKIES_PATH}.tmp`;
+  const dest = cookiesFilePath();
+  mkdirSync(path.dirname(dest), { recursive: true });
+  const tmp = `${dest}.tmp`;
   writeFileSync(tmp, content, 'utf-8');
-  renameSync(tmp, DEFAULT_COOKIES_PATH);
+  renameSync(tmp, dest);
+  // Il vecchio file non deve restare a fare da ripiego con cookie scaduti.
+  if (existsSync(LEGACY_COOKIES_PATH)) unlinkSync(LEGACY_COOKIES_PATH);
   return getCookiesStatus();
 }
 
 export function deleteCookiesFile() {
-  if (existsSync(DEFAULT_COOKIES_PATH)) unlinkSync(DEFAULT_COOKIES_PATH);
+  for (const f of [cookiesFilePath(), LEGACY_COOKIES_PATH]) {
+    if (existsSync(f)) unlinkSync(f);
+  }
   return getCookiesStatus();
 }
 
@@ -248,13 +269,11 @@ export function getPaths() {
  * `checkTools()`, che dice se l'installazione è completa.
  */
 export function getToolPaths() {
-  // Cookie: percorso fisso (M95 — non più configurabile). Il file lo si mette
-  // qui a mano o lo si carica dalla web app / dal menu: in entrambi i casi
-  // finisce sempre in questo punto, quindi un campo che ne indicasse un altro
-  // era un modo per avere due sorgenti di verità e nessuna certezza su quale
-  // valesse.
-  const defaultCookiesPath = path.join(CORE_DIR, 'cookies.txt');
-  const cookiesPath = existsSync(defaultCookiesPath) ? defaultCookiesPath : null;
+  // Cookie: percorso fisso, non configurabile (M95) — accanto alle impostazioni
+  // dell'applicazione, con il vecchio core/cookies.txt come ripiego (vedi
+  // activeCookiesPath). Un campo che ne indicasse un altro sarebbe una seconda
+  // sorgente di verità.
+  const cookiesPath = activeCookiesPath();
 
   // Binari esterni (M95): due soli posti, in ordine — la cartella tools/
   // dell'INSTALLAZIONE (dove scrive `setup`), poi il PATH di sistema (Homebrew,

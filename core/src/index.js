@@ -255,7 +255,7 @@ export {
   // da copertine/avatar (M38/M97, che vivono fisse dentro la libreria)
   setVideosRoot,
   clearVideosRoot,
-  // cookie YouTube (core/cookies.txt): upload/cancellazione da Impostazioni
+  // cookie YouTube (<config>/cookies.txt): upload/cancellazione da Impostazioni
   getCookiesStatus,
   saveCookiesFile,
   deleteCookiesFile

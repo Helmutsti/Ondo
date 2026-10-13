@@ -6,7 +6,7 @@
 //
 // Da qui in avanti "installazione" e "libreria" sono due cose distinte:
 //
-//   installazione → il codice, tools/ con i binari, core/cookies.txt
+//   installazione → il codice, tools/ con i binari
 //   libreria      → data/ (catalogo, config, media) e i video
 //
 // Coincidono nel caso normale (una libreria dentro il progetto, il default), ma

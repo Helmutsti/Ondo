@@ -134,7 +134,7 @@ Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resour
 { "videosRoot": "/videos" }
 ```
 
-**Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Vanno ricaricati dopo un aggiornamento dell'immagine.
+**Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Finiscono in `config\cookies.txt`, accanto alle impostazioni: sopravvivono agli aggiornamenti dell'immagine.
 
 **Imporre una versione tua di yt-dlp**, senza aspettare un'immagine nuova: mettila in `config\tools\` (la cartella accanto al compose, già montata) col nome `yt-dlp_linux`. Ha la precedenza su quella dell'immagine. Deve essere il binario **Linux**: un `.exe` di Windows nel container non parte.
 
@@ -322,7 +322,7 @@ Quasi tutto si cambia dal menu **Impostazioni** (o dalla pagina Impostazioni del
 
 > **Perché divisi.** Qualità, parallelismo e percorsi di programmi sono scelte di chi usa il computer, non proprietà dell'archivio: tenerle nella libreria la rendeva intrasportabile — copiata su un altro PC o montata in un container si portava dietro la porta di quel container e un percorso di VLC che lì non esisteva. Ora la libreria contiene solo ciò che è suo, e si sposta senza portarsi dietro niente di estraneo.
 
-> **I percorsi dei binari non si configurano affatto: si trovano.** yt-dlp e ffmpeg si cercano in `config/tools/` (accanto alle impostazioni) e poi nel PATH di sistema; il file dei cookie sta sempre in `core/cookies.txt`. Seguono l'**installazione**, non la libreria: dieci librerie condividono un solo yt-dlp, e una libreria su un disco esterno non deve pretendere di avere i binari accanto ai video.
+> **I percorsi dei binari non si configurano affatto: si trovano.** yt-dlp e ffmpeg si cercano in `config/tools/` (accanto alle impostazioni) e poi nel PATH di sistema; il file dei cookie sta accanto alle impostazioni (`config/cookies.txt`). Seguono l'**installazione**, non la libreria: dieci librerie condividono un solo yt-dlp, e una libreria su un disco esterno non deve pretendere di avere i binari accanto ai video.
 
 > **Se il disco di `videosRoot` non è collegato, l'app non parte** (`ENOENT ... mkdir`). È un difetto noto, registrato in [`docs/PIANO.md`](docs/PIANO.md) → "Bug noti". Ripiego: ricollega il disco, o rimetti `videosRoot` a `null`.
 
@@ -333,7 +333,7 @@ Quasi tutto si cambia dal menu **Impostazioni** (o dalla pagina Impostazioni del
 Se ti servono video privati o non listati del tuo account, yt-dlp deve autenticarsi:
 
 1. Esporta i cookie di YouTube in **formato Netscape** (es. con l'estensione "Get cookies.txt LOCALLY").
-2. Salva il file come `core/cookies.txt`.
+2. Caricalo dalla web app (**Impostazioni → Cookie**), oppure salvalo come `cookies.txt` nella cartella delle impostazioni (`config/`, in Docker `/config`). Il vecchio `core/cookies.txt` si legge ancora.
 
 Se il file non c'è, tutto funziona lo stesso. Non viene mai versionato.
 
