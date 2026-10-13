@@ -136,6 +136,8 @@ Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resour
 
 **Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Finiscono in `config\cookies.txt`, accanto alle impostazioni: sopravvivono agli aggiornamenti dell'immagine.
 
+**Usare Ondo con qualcuno che guarda lo schermo.** In **Impostazioni → Modalità discreta** puoi sfocare le sole immagini (copertine, foto dei creator, player) oppure anche titoli e nomi. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta vale solo per il browser in cui la fai.
+
 **Imporre una versione tua di yt-dlp**, senza aspettare un'immagine nuova: mettila in `config\tools\` (la cartella accanto al compose, già montata) col nome `yt-dlp_linux`. Ha la precedenza su quella dell'immagine. Deve essere il binario **Linux**: un `.exe` di Windows nel container non parte.
 
 ### Se qualcosa non va

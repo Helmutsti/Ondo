@@ -355,7 +355,7 @@ export function VideoDetailPage() {
               </div>
             ) : (
               <div
-                className="player-placeholder"
+                className="player-placeholder discreet-bg"
                 style={video.thumbnailUrl ? {
                   backgroundImage: `linear-gradient(rgba(8,8,10,.82), rgba(8,8,10,.82)), url("${video.thumbnailUrl}")`,
                   backgroundSize: 'cover',
@@ -368,7 +368,7 @@ export function VideoDetailPage() {
             )}
           </div>
 
-          <h1 className="d-title">{video.title ?? video.id}</h1>
+          <h1 className="d-title discreet-text">{video.title ?? video.id}</h1>
 
           <div className="d-row">
             <div className="d-chan">
@@ -377,9 +377,9 @@ export function VideoDetailPage() {
               </div>
               <div>
                 {key ? (
-                  <Link to={`/channels/${encodeURIComponent(key)}`} className="d-chan-name">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
+                  <Link to={`/channels/${encodeURIComponent(key)}`} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
                 ) : (
-                  <div className="d-chan-name">{video.channel?.name ?? 'Creator sconosciuto'}</div>
+                  <div className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
                 )}
                 <div className="d-meta">{[dur, date].filter(Boolean).join(' · ')}</div>
               </div>
@@ -450,7 +450,7 @@ export function VideoDetailPage() {
               {video.description && (
                 <>
                   <span className="label">Descrizione</span>
-                  <div ref={descRef} className={`d-desc-text${descExpanded ? ' expanded' : ''}`}>
+                  <div ref={descRef} className={`d-desc-text discreet-text${descExpanded ? ' expanded' : ''}`}>
                     {video.description}
                   </div>
                   {descClamped && (
@@ -472,7 +472,7 @@ export function VideoDetailPage() {
                   spazio in modo apprezzabile. */}
               {video.tags?.length > 0 && (
                 <div className="d-tags">
-                  {video.tags.slice(0, 12).map((tag) => <div key={tag} className="d-tag">{tag}</div>)}
+                  {video.tags.slice(0, 12).map((tag) => <div key={tag} className="d-tag discreet-text">{tag}</div>)}
                 </div>
               )}
             </div>
@@ -597,8 +597,8 @@ export function VideoDetailPage() {
                             {formatDuration(q.durationSeconds) && <div className="dur">{formatDuration(q.durationSeconds)}</div>}
                           </Link>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <Link to={`/videos/${q.id}`} className="rel-title">{q.title}</Link>
-                            {q.channelName && <div className="rel-meta">{q.channelName}</div>}
+                            <Link to={`/videos/${q.id}`} className="rel-title discreet-text">{q.title}</Link>
+                            {q.channelName && <div className="rel-meta discreet-text">{q.channelName}</div>}
                           </div>
                           <button
                             className="rel-collapse-btn"

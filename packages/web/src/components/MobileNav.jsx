@@ -69,7 +69,7 @@ export function MobileNav({ channels = [] }) {
                   <span className="avatar">
                     {c.avatarUrl ? <img className="avatar-photo" src={c.avatarUrl} alt="" /> : (c.name?.charAt(0)?.toUpperCase() ?? '?')}
                   </span>
-                  <span className="side-label">{c.name}</span>
+                  <span className="side-label discreet-text">{c.name}</span>
                 </NavLink>
               ))}
             </div>

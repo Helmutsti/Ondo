@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Download, Upload, Clapperboard, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers } from 'lucide-react';
+import { Download, Upload, Clapperboard, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff } from 'lucide-react';
 import { BACKUP_URL, restoreBackup, getConfig, setVideosRoot, setDefaultQuality, setParallel, uploadCookies, deleteCookies } from '../api/client.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { showToast } from '../lib/toast.js';
 import { useMiniPlayerEnabled, setMiniPlayerEnabled, useAutoplayOnOpen, setAutoplayOnOpen } from '../lib/playerStore.js';
+import { useDiscreet, setDiscreetMode } from '../lib/discreetStore.js';
+
+const DISCREET_OPTIONS = [
+  { value: 'off', title: 'Spenta', sub: 'Copertine, foto e testi visibili come sempre.' },
+  { value: 'images', title: 'Nascondi le immagini', sub: 'Copertine, foto profilo e immagine del player sfocate. Nel player, «Mostra» la scopre per il solo video corrente.' },
+  { value: 'all', title: 'Nascondi immagini e testi', sub: 'In più sfoca titoli, nomi di creator e fonti, descrizioni, tag e notifiche. Il titolo della scheda del browser resta «Ondo».' }
+];
 
 export function SettingsPage() {
   useTitle('Impostazioni');
@@ -12,6 +19,7 @@ export function SettingsPage() {
   // --- Riproduzione (mini-player, M54; autoplay all'apertura, M60) — preferenze solo client (localStorage) ---
   const miniPlayerEnabled = useMiniPlayerEnabled();
   const autoplayOnOpen = useAutoplayOnOpen();
+  const { mode: discreetMode } = useDiscreet();
 
   // --- Backup / ripristino ---
   const [busy, setBusy] = useState(false);
@@ -154,6 +162,28 @@ export function SettingsPage() {
   return (
     <>
       <div className="page-head"><h1>Impostazioni</h1></div>
+
+      <div className="d-desc">
+        <span className="label"><EyeOff size={15} style={{ verticalAlign: -2 }} /> Modalità discreta</span>
+        Per usare Ondo quando qualcuno può vedere lo schermo. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta è salvata in questo browser: gli altri dispositivi non cambiano.
+        <div className="discreet-options" role="radiogroup" aria-label="Modalità discreta">
+          {DISCREET_OPTIONS.map((o) => (
+            <label key={o.value} className={`discreet-option${discreetMode === o.value ? ' active' : ''}`}>
+              <input
+                type="radio"
+                name="discreet-mode"
+                value={o.value}
+                checked={discreetMode === o.value}
+                onChange={() => setDiscreetMode(o.value)}
+              />
+              <span>
+                <div className="discreet-option-title">{o.title}</div>
+                <div className="discreet-option-sub">{o.sub}</div>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
 
       <div className="d-desc">
         <span className="label">Riproduzione</span>

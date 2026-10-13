@@ -262,8 +262,8 @@ export function SourcesPage() {
                   <div key={s.id} className="source-line-wrap">
                     <div className="source-line">
                       <div className="source-line-main">
-                        <div className="name">{s.name}</div>
-                        <div className="url">{s.url}</div>
+                        <div className="name discreet-text">{s.name}</div>
+                        <div className="url discreet-text">{s.url}</div>
                       </div>
                       <div className="count">{s.videoCount} video</div>
                       <div className="actions">

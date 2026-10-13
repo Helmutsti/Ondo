@@ -114,7 +114,7 @@ export function ChannelPage() {
           {avatarUrl ? <img className="avatar-photo" src={avatarUrl} alt="" /> : name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div className="chan-name">{name}</div>
+          <div className="chan-name discreet-text">{name}</div>
           <div className="chan-count">{sorted.length} video</div>
         </div>
         <button

@@ -217,10 +217,10 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
           {thumbInner}
         </Link>
         <div className="row-body">
-          <Link to={`/videos/${video.id}`} className="row-title">
+          <Link to={`/videos/${video.id}`} className="row-title discreet-text">
             {video.title ?? video.id}
           </Link>
-          <div className="row-meta">
+          <div className="row-meta discreet-text">
             {video.channel?.name ?? 'Creator sconosciuto'}{date ? ` · ${date}` : ''}
           </div>
         </div>
@@ -234,7 +234,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
       <Link to={`/videos/${video.id}`} className={`thumb${downloading ? ' downloading' : ''}${notDownloaded ? ' not-downloaded' : ''}`}>
         {thumbInner}
       </Link>
-      <Link to={`/videos/${video.id}`} className="card-title">
+      <Link to={`/videos/${video.id}`} className="card-title discreet-text">
         {video.title ?? video.id}
       </Link>
       <div className="card-info">
@@ -248,7 +248,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="card-meta">{video.channel?.name ?? 'Creator sconosciuto'}</div>
+          <div className="card-meta discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
           {date && <div className="card-meta">{date}</div>}
         </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Maximize2, Play } from 'lucide-react';
+import { X, Maximize2, Play, Eye } from 'lucide-react';
 import {
   usePlayer, useMiniPlayerEnabled,
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
@@ -9,6 +9,7 @@ import {
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
 import { attachVideo, watchBuffering } from 'vod-stream/client';
 import { apiUrl } from '../lib/apiBase.js';
+import { useDiscreet, revealPlayer } from '../lib/discreetStore.js';
 
 // Mini-player desktop-only (scelta di scope M54): su schermo piccolo vale il
 // comportamento attuale (il video si ferma al cambio pagina), così non resta
@@ -34,6 +35,7 @@ function isDesktopViewport() {
 // portale.
 export function MiniPlayer() {
   const { current, playing, started, detached, minimized } = usePlayer();
+  const discreet = useDiscreet();
   const enabled = useMiniPlayerEnabled();
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,6 +215,16 @@ export function MiniPlayer() {
         onPause={() => setPlaying(false)}
         onEnded={handleEnded}
       />
+      {/* Modalità discreta: velo sfocato sopra l'immagine. Non intercetta i
+          clic (i controlli nativi sotto restano usabili); "Mostra" lo toglie
+          per il solo video corrente. */}
+      {discreet.mode !== 'off' && discreet.revealedId !== current.id && (
+        <div className="discreet-veil">
+          <button className="discreet-reveal" onClick={() => revealPlayer(current.id)} title="Mostra l'immagine di questo video">
+            <Eye size={13} />Mostra
+          </button>
+        </div>
+      )}
       {buffering && (docked ? started : true) && (
         <div className="player-buffering" aria-label="Caricamento" role="status">
           <span className="player-buffering-ring" />
@@ -232,7 +244,7 @@ export function MiniPlayer() {
             title="Torna al video"
           >
             <Maximize2 size={13} />
-            <span className="gp-title">{current.title}</span>
+            <span className="gp-title discreet-text">{current.title}</span>
           </button>
           <button className="gp-close" onClick={handleClose} title="Chiudi" aria-label="Chiudi mini-player">
             <X size={15} />

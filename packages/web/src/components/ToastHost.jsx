@@ -22,7 +22,7 @@ export function ToastHost() {
           onClick={t.onClick}
           role={t.onClick ? 'button' : undefined}
         >
-          {t.message}
+          <span className="discreet-text">{t.message}</span>
         </div>
       ))}
     </div>

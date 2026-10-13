@@ -131,11 +131,11 @@ export function CatalogPage() {
         <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordina per">
           {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select value={creator} onChange={(e) => setCreator(e.target.value)} aria-label="Filtra per creator">
+        <select className={creator ? 'discreet-text' : undefined} value={creator} onChange={(e) => setCreator(e.target.value)} aria-label="Filtra per creator">
           <option value="">Tutti i creator</option>
           {channelOptions.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
         </select>
-        <select value={source} onChange={(e) => setSource(e.target.value)} aria-label="Filtra per sorgente">
+        <select className={source && source !== SINGLE ? 'discreet-text' : undefined} value={source} onChange={(e) => setSource(e.target.value)} aria-label="Filtra per sorgente">
           <option value="">Tutte le sorgenti</option>
           {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           <option value={SINGLE}>Singoli (senza sorgente)</option>

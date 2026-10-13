@@ -81,7 +81,7 @@ export function Layout() {
               <span className="avatar">
                 {c.avatarUrl ? <img className="avatar-photo" src={c.avatarUrl} alt="" /> : (c.name?.charAt(0)?.toUpperCase() ?? '?')}
               </span>
-              {c.name}
+              <span className="discreet-text">{c.name}</span>
             </NavLink>
           ))}
         </nav>

@@ -213,7 +213,7 @@ function JobHistoryRow({ job, isOpen, onToggle, onDelete, onCancel, busy, onSett
           {cover ? <img src={cover} alt="" loading="lazy" /> : <span>nessuna copertina</span>}
         </div>
         <div className="job-hist-body" onClick={onToggle}>
-          <div className="job-hist-title">{title}</div>
+          <div className="job-hist-title discreet-text">{title}</div>
           <div className="job-hist-meta">
             <span className="job-status" style={{ background: JOB_STATUS_COLOR[status] ?? 'var(--faint)' }}>
               {JOB_STATUS_LABEL[status] ?? status}
@@ -227,7 +227,7 @@ function JobHistoryRow({ job, isOpen, onToggle, onDelete, onCancel, busy, onSett
         <div className="job-hist-side">
           {liveNow ? (
             <>
-              <div className="job-hist-phase">
+              <div className="job-hist-phase discreet-text">
                 {status === 'queued' ? 'In coda — attende il job precedente…' : (live.logLines.at(-1) ?? 'Avvio…')}
               </div>
               <div className={`progress-bar${live.progress == null ? ' indeterminate' : ''}`}>
@@ -237,8 +237,8 @@ function JobHistoryRow({ job, isOpen, onToggle, onDelete, onCancel, busy, onSett
           ) : (
             (outcome || (job.status === 'failed' && job.error)) && (
               <>
-                {outcome && <div className="job-hist-outcome">{outcome}</div>}
-                {job.status === 'failed' && job.error && <div className="job-hist-outcome err">{job.error.message}</div>}
+                {outcome && <div className="job-hist-outcome discreet-text">{outcome}</div>}
+                {job.status === 'failed' && job.error && <div className="job-hist-outcome err discreet-text">{job.error.message}</div>}
                 {quickDownload && (
                   <button className="btn small" disabled={starting} onClick={(e) => { e.stopPropagation(); handleQuickDownload(); }}>
                     <Download size={13} />Scarica
@@ -262,7 +262,7 @@ function JobHistoryRow({ job, isOpen, onToggle, onDelete, onCancel, busy, onSett
       </div>
 
       {isOpen && (
-        <div className="job-log" style={{ margin: '0 16px 14px' }}>
+        <div className="job-log discreet-text" style={{ margin: '0 16px 14px' }}>
           {(liveNow ? live.logLines : job.logLines).map((line, i) => <div key={i} className="line">{line}</div>)}
           {job.error && <div className="line err">{job.error.message}</div>}
         </div>

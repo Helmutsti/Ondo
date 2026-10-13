@@ -1164,3 +1164,67 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 
 /* Box "Stato e sincronizzazione" nel dettaglio video (M35) */
 .sync-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+/* ===== Modalità discreta (Impostazioni → Privacy) =====
+   Livello su <html data-discreet="images|all">, gestito da lib/discreetStore.js.
+   Le immagini restano al loro posto ma sfocate fino a diventare una macchia di
+   colore: l'interfaccia si legge ancora (le card si distinguono tra loro), il
+   contenuto no. Alt tenuto premuto + mouse sopra = "sbircia" quell'elemento.
+   Lo scale nasconde il bordo trasparente che il blur crea ai lati; tutti i
+   contenitori di copertine e avatar hanno già overflow: hidden. */
+html[data-discreet] img {
+  filter: blur(26px) saturate(.5) !important;
+  transform: scale(1.5);
+  transition: filter .15s ease;
+}
+html[data-discreet] img.avatar-photo { filter: blur(8px) saturate(.5) !important; }
+/* .d-avatar e .chan-avatar non ritagliano: il blur sborderebbe dal cerchio. */
+html[data-discreet] .d-avatar, html[data-discreet] .chan-avatar { overflow: hidden; }
+html[data-discreet] .logo img { filter: none !important; transform: none; }
+html[data-discreet][data-discreet-peek] img:hover {
+  filter: none !important;
+  transform: none;
+}
+/* Copertina di sfondo del player "non ancora disponibile" (stile inline). */
+html[data-discreet] .discreet-bg { background-image: none !important; }
+
+/* Player: un velo con backdrop-filter sopra il <video>, invece di un filtro sul
+   <video> stesso, che sfocherebbe anche i controlli nativi. */
+.discreet-veil {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  backdrop-filter: blur(48px) saturate(.5);
+  -webkit-backdrop-filter: blur(48px) saturate(.5);
+  background: rgba(8, 8, 10, .25);
+}
+html[data-discreet-peek] .global-player:hover .discreet-veil { display: none; }
+.discreet-reveal {
+  position: absolute; top: 10px; left: 10px;
+  pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+  color: #fff; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .25);
+}
+.discreet-reveal:hover { background: rgba(0, 0, 0, .8); }
+.mini-float-home .discreet-reveal { top: 36px; }
+.mini-float-home .gp-chrome, .player-buffering { z-index: 4; }
+
+/* Livello 2: titoli, nomi di canali e fonti, descrizioni, tag, storico. */
+html[data-discreet="all"] .discreet-text {
+  filter: blur(6px);
+  transition: filter .15s ease;
+}
+html[data-discreet="all"][data-discreet-peek] .discreet-text:hover { filter: none; }
+
+/* Scelta del livello nelle Impostazioni. */
+.discreet-options { display: grid; gap: 8px; margin-top: 12px; }
+.discreet-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel2);
+}
+.discreet-option.active { border-color: var(--accent); }
+.discreet-option input { margin-top: 3px; accent-color: var(--accent); }
+.discreet-option-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.discreet-option-sub { margin-top: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
