@@ -35,26 +35,57 @@ async function downloadAvatarImage(avatarUrl, avatarsDir, baseName, previousLoca
   return filename;
 }
 
-// Legge la mappa { channelKey: record } così com'è nel catalogo — usata dal
-// server per arricchire le risposte HTTP senza toccare catalogStore
-// direttamente (stesso principio di ogni altro accesso al catalogo).
-export async function getChannelAvatarMap() {
-  const catalog = await readCatalog();
-  return catalog.channelAvatars;
+// L'URL del canale da cui leggere la foto: dal primo video del canale che lo
+// porta (channel.url/uploaderUrl arrivano con l'arricchimento), oppure, per i
+// canali YouTube con id noto, costruito dall'id.
+async function channelUrlFor(channelKey) {
+  const videos = await listVideosByChannel(channelKey);
+  for (const v of videos) {
+    const url = v.channel?.url ?? v.channel?.uploaderUrl;
+    if (url) return url;
+  }
+  if (/^UC[\w-]{22}$/.test(channelKey)) return `https://www.youtube.com/channel/${channelKey}`;
+  return null;
 }
 
-// Sincronizza le foto profilo dei canali con almeno un video scaricato.
-// force:false (default) salta i canali già a posto (idempotente, stesso
-// ruolo di "alreadyOk" in reorganizeLibrary); force:true li ri-scarica tutti
-// — copre il caso in cui un creator cambi la propria foto. Un fallimento su
-// un singolo canale non interrompe il batch, coerente con la tolleranza ai
-// fallimenti già usata altrove nel progetto (es. downloadPendingJob).
-export async function syncChannelAvatars({ force = false, channelKey = null } = {}) {
+/**
+ * Scarica (o riscarica) la foto di UN canale da YouTube. Solo su richiesta:
+ * dalla finestra "Foto del profilo" o dal comando esplicito della CLI. Non la
+ * assegna a nessun profilo — quello è profileService.setProfileAvatar.
+ * @returns il record salvato in channelAvatars
+ */
+export async function fetchChannelAvatar(channelKey) {
   const paths = getPaths();
-  // Tutti i creator (non solo quelli con video scaricati): un creator appena
-  // aggiunto, con soli video "disponibili", deve comunque avere la sua foto.
-  // channelKey: se presente, limita il refresh a un solo creator (M42) — usato
-  // dal bottone "Aggiorna" sulla sua pagina, invece del bulk su tutti.
+  const catalog = await readCatalog();
+  const existing = catalog.channelAvatars[channelKey];
+  try {
+    const channelUrl = await channelUrlFor(channelKey);
+    if (!channelUrl) throw new Error('Indirizzo del canale non ancora noto: aggiorna i metadati di un suo video e riprova.');
+    const { avatarUrl } = await resolveChannelAvatar(channelUrl);
+    if (!avatarUrl) throw new Error('Nessuna foto trovata per questo canale: puoi caricare un\'immagine tua.');
+    const filename = await downloadAvatarImage(avatarUrl, paths.avatarsDir, sanitizeName(channelKey, 'channel'), existing?.localPath);
+    const record = { channelKey, sourceUrl: avatarUrl, localPath: filename, fetchedAt: new Date().toISOString(), error: null };
+    await updateCatalog((cat) => { cat.channelAvatars[channelKey] = record; });
+    return record;
+  } catch (err) {
+    await updateCatalog((cat) => {
+      cat.channelAvatars[channelKey] = {
+        channelKey,
+        sourceUrl: existing?.sourceUrl ?? null,
+        localPath: existing?.localPath ?? null,
+        fetchedAt: existing?.fetchedAt ?? null,
+        error: err.message
+      };
+    });
+    throw err;
+  }
+}
+
+// Scarica le foto di più canali (comando esplicito della CLI "foto creator").
+// force:false salta i canali che ne hanno già una; force:true le riscarica.
+// Un fallimento su un canale non interrompe gli altri. Niente più chiamate
+// automatiche a fine sync: le foto si scelgono a mano, profilo per profilo.
+export async function syncChannelAvatars({ force = false, channelKey = null } = {}) {
   const allChannels = await listChannels();
   const channels = channelKey ? allChannels.filter((c) => c.key === channelKey) : allChannels;
   if (channelKey && channels.length === 0) {
@@ -69,45 +100,14 @@ export async function syncChannelAvatars({ force = false, channelKey = null } = 
   for (const channel of channels) {
     const catalog = await readCatalog();
     const existing = catalog.channelAvatars[channel.key];
-
     if (!force && existing?.localPath && !existing.error) {
       skippedCount += 1;
       continue;
     }
-
     try {
-      // listChannels() non porta l'URL del canale: lo si recupera dal primo
-      // video scaricato di quel canale, che ha sempre channel.url/uploaderUrl.
-      const [sample] = await listVideosByChannel(channel.key);
-      const channelUrl = sample?.channel?.url ?? sample?.channel?.uploaderUrl ?? null;
-      if (!channelUrl) throw new Error('Nessun URL canale disponibile tra i video del creator');
-
-      const { avatarUrl } = await resolveChannelAvatar(channelUrl);
-      if (!avatarUrl) throw new Error('Nessuna foto profilo trovata per questo canale');
-
-      const baseName = sanitizeName(channel.key, 'channel');
-      const filename = await downloadAvatarImage(avatarUrl, paths.avatarsDir, baseName, existing?.localPath);
-
-      await updateCatalog((cat) => {
-        cat.channelAvatars[channel.key] = {
-          channelKey: channel.key,
-          sourceUrl: avatarUrl,
-          localPath: filename,
-          fetchedAt: new Date().toISOString(),
-          error: null
-        };
-      });
+      await fetchChannelAvatar(channel.key);
       fetchedCount += 1;
     } catch (err) {
-      await updateCatalog((cat) => {
-        cat.channelAvatars[channel.key] = {
-          channelKey: channel.key,
-          sourceUrl: existing?.sourceUrl ?? null,
-          localPath: existing?.localPath ?? null,
-          fetchedAt: new Date().toISOString(),
-          error: err.message
-        };
-      });
       failedCount += 1;
       errors.push({ key: channel.key, name: channel.name, error: err.message });
     }

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Home, Rss, Search, Archive, Settings, X } from 'lucide-react';
-import { listChannels } from '../api/client.js';
+import { Home, Rss, Search, Archive, Settings, X, Users, Pin, ArrowRight } from 'lucide-react';
+import { listProfiles } from '../api/client.js';
+import { ProfileAvatar } from './ProfileAvatar.jsx';
+import { onProfilesChanged } from '../lib/profileEvents.js';
 import { MobileNav } from './MobileNav.jsx';
 import { MiniPlayer } from './MiniPlayer.jsx';
 import { ToastHost } from './ToastHost.jsx';
@@ -9,7 +11,7 @@ import { DialogHost } from './DialogHost.jsx';
 import { registerNavigate } from '../lib/navigation.js';
 
 export function Layout() {
-  const [channels, setChannels] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [searchParams] = useSearchParams();
   const urlQ = searchParams.get('q') ?? '';
   const [query, setQuery] = useState(urlQ);
@@ -18,12 +20,14 @@ export function Layout() {
 
   useEffect(() => { registerNavigate(navigate); }, [navigate]);
 
-  // Rifetch a ogni cambio pagina: dataset piccolo (canali distinti tra i
-  // video scaricati), costo trascurabile, evita una sidebar disallineata
-  // dopo una sync/decisione presa in un'altra pagina.
+  // Rifetch a ogni cambio pagina e quando un profilo cambia (fissato,
+  // rinominato, foto): dataset piccolo, evita una sidebar disallineata.
   useEffect(() => {
-    listChannels().then(setChannels).catch(() => {});
+    const load = () => listProfiles().then(setProfiles).catch(() => {});
+    load();
+    return onProfilesChanged(load);
   }, [location.pathname]);
+  const pinned = profiles.filter((p) => p.pinned);
 
   // Unica barra di ricerca (punto 10): sincronizzata con la query attiva
   // dell'URL — su /search?q=… mostra il termine cercato, altrove si svuota.
@@ -70,20 +74,24 @@ export function Layout() {
       <div className="body-area">
         <nav className="sidebar">
           <NavLink to="/" end className={navCls}><Home size={16} />Home</NavLink>
+          <NavLink to="/creators" end className={navCls}><Users size={16} />Creator</NavLink>
           <NavLink to="/sources" className={navCls}><Rss size={16} />Sorgenti</NavLink>
           <NavLink to="/archived" className={navCls}><Archive size={16} />Archiviati</NavLink>
           <NavLink to="/settings" className={navCls}><Settings size={16} />Impostazioni</NavLink>
           <div className="side-div"></div>
-          <div className="side-sec">Creator</div>
-          {channels.length === 0 && <div className="side-empty">Nessun creator ancora</div>}
-          {channels.map((c) => (
-            <NavLink key={c.key} to={`/channels/${encodeURIComponent(c.key)}`} className={navCls}>
-              <span className="avatar">
-                {c.avatarUrl ? <img className="avatar-photo" src={c.avatarUrl} alt="" /> : (c.name?.charAt(0)?.toUpperCase() ?? '?')}
-              </span>
-              <span className="discreet-text">{c.name}</span>
+          <div className="side-sec"><Pin size={11} style={{ verticalAlign: -1 }} /> Fissati</div>
+          {pinned.length === 0 && profiles.length > 0 && (
+            <div className="side-empty">Fissa un creator dalla sua pagina per averlo qui.</div>
+          )}
+          {pinned.map((p) => (
+            <NavLink key={p.id} to={`/creators/${encodeURIComponent(p.id)}`} className={navCls}>
+              <ProfileAvatar url={p.avatarUrl} name={p.name} />
+              <span className="discreet-text">{p.name}</span>
             </NavLink>
           ))}
+          {profiles.length > 0 && (
+            <Link to="/creators" className="side-all">Tutti i creator ({profiles.length}) <ArrowRight size={13} /></Link>
+          )}
         </nav>
         <main className="main">
           <Outlet />
@@ -92,7 +100,7 @@ export function Layout() {
       {/* Mini-player persistente (M54): montato FUORI dall'<Outlet/>, così il suo
           <video> sopravvive al cambio di route e la riproduzione non si taglia. */}
       <MiniPlayer />
-      <MobileNav channels={channels} />
+      <MobileNav profiles={profiles} />
     </div>
   );
 }

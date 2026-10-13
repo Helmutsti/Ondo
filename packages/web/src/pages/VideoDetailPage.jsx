@@ -377,7 +377,7 @@ export function VideoDetailPage() {
               </div>
               <div>
                 {key ? (
-                  <Link to={`/channels/${encodeURIComponent(key)}`} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
+                  <Link to={video.channel?.profileId ? `/creators/${encodeURIComponent(video.channel.profileId)}` : `/channels/${encodeURIComponent(key)}`} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
                 ) : (
                   <div className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
                 )}

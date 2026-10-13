@@ -31,9 +31,19 @@ function resolveThumbnailUrl(video) {
   return null;
 }
 
-export function toPublicVideo(video, channelAvatars = {}) {
+// URL di una foto della cartella avatar, con la data come cache-bust (M42):
+// una foto riscritta con lo stesso nome resterebbe altrimenti quella vecchia.
+export function avatarUrl(file) {
+  return file?.localPath
+    ? `/media/avatars/${encodeRelPath(file.localPath)}?v=${encodeURIComponent(file.version ?? '')}`
+    : null;
+}
+
+// creatorIndex: channelKey → { profileId, avatar } (core getCreatorIndex). La
+// foto accanto a un video è quella del suo profilo creator.
+export function toPublicVideo(video, creatorIndex = {}) {
   const key = channelKey(video);
-  const avatar = key ? channelAvatars[key] : null;
+  const creator = key ? creatorIndex[key] : null;
   return {
     ...video,
     // Categoria derivata dai flag ortogonali (M25): calcolata nel core, così il
@@ -44,10 +54,8 @@ export function toPublicVideo(video, channelAvatars = {}) {
     thumbnailUrl: resolveThumbnailUrl(video),
     channel: {
       ...video.channel,
-      // Cache-bust con fetchedAt (M42): vedi stesso pattern in videos.routes.js.
-      avatarUrl: avatar?.localPath
-        ? `/media/avatars/${encodeRelPath(avatar.localPath)}?v=${encodeURIComponent(avatar.fetchedAt ?? '')}`
-        : null
+      profileId: creator?.profileId ?? null,
+      avatarUrl: avatarUrl(creator?.avatar)
     }
   };
 }

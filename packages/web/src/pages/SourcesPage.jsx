@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { RefreshCw, Trash2, Plus, ImageIcon, ChevronDown } from 'lucide-react';
-import { listSources, removeSource, syncSources, syncChannelAvatars, getJob, triggerJob } from '../api/client.js';
+import { RefreshCw, Trash2, Plus, ChevronDown } from 'lucide-react';
+import { listSources, removeSource, syncSources, getJob, triggerJob } from '../api/client.js';
 import { useJobStream } from '../hooks/useJobStream.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { JobHistory } from '../components/JobHistory.jsx';
@@ -36,7 +36,6 @@ export function SourcesPage() {
   }, [location.key, location.state]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [jobRefreshKey, setJobRefreshKey] = useState(0);
 
   // Sincronizzazione contestuale alla sorgente (una per volta).
@@ -156,28 +155,6 @@ export function SourcesPage() {
     }
   }
 
-  // Aggiorna solo i creator che NON hanno ancora una foto (mai "force" da qui):
-  // un creator nuovo la prende già in automatico alla creazione; forzare il
-  // refresh di una foto già presente è un'azione sul singolo creator, da
-  // spostare sulla sua pagina (fuori scope di questa pagina).
-  async function handleAvatarSync() {
-    setBusy(true);
-    setError(null);
-    showToast('Aggiornamento foto creator avviato…', 'info');
-    try {
-      const r = await syncChannelAvatars(false);
-      const outcome = `Foto creator: ${r.fetchedCount} scaricate, ${r.skippedCount} già presenti` +
-        (r.failedCount ? `, ${r.failedCount} non trovate.` : '.');
-      setNotice(outcome);
-      showToast(outcome, r.failedCount ? 'error' : 'success');
-    } catch (e) {
-      setError(e.message);
-      showToast(`Aggiornamento foto creator fallito: ${e.message}`, 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const syncing = activeSyncId !== null;
 
   function summaryLine(r) {
@@ -211,9 +188,6 @@ export function SourcesPage() {
               <RefreshCw size={14} className={syncing ? 'spin' : undefined} />Sincronizza tutte
             </button>
           )}
-          <button className="btn" disabled={busy || syncing} onClick={handleAvatarSync}>
-            <ImageIcon size={14} />Sincronizza foto creator
-          </button>
         </div>
       </div>
 
@@ -237,7 +211,6 @@ export function SourcesPage() {
       </div>
 
       {error && <div className="notice error">{error}</div>}
-      {notice && <div className="notice success">{notice}</div>}
 
       {sources === null ? (
         <div className="empty-state"><span className="spinner"></span></div>

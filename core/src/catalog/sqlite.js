@@ -35,6 +35,8 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS videos          (id  TEXT PRIMARY KEY, data  TEXT NOT NULL) STRICT;
   CREATE TABLE IF NOT EXISTS sources         (id  TEXT PRIMARY KEY, data  TEXT NOT NULL) STRICT;
   CREATE TABLE IF NOT EXISTS channel_avatars (key TEXT PRIMARY KEY, data  TEXT NOT NULL) STRICT;
+  -- Profili creator: uno o più canali della stessa persona (vedi profileService).
+  CREATE TABLE IF NOT EXISTS profiles        (id  TEXT PRIMARY KEY, data  TEXT NOT NULL) STRICT;
   CREATE TABLE IF NOT EXISTS metadata        (id  TEXT PRIMARY KEY, data  TEXT NOT NULL) STRICT;
   -- Il resto del catalogo, che non è una collezione: version, queue (array
   -- ordinato dei link non ancora risolti), meta.
@@ -45,7 +47,8 @@ const SCHEMA = `
 export const COLLECTIONS = [
   { field: 'videos', table: 'videos', key: 'id' },
   { field: 'sources', table: 'sources', key: 'id' },
-  { field: 'channelAvatars', table: 'channel_avatars', key: 'key' }
+  { field: 'channelAvatars', table: 'channel_avatars', key: 'key' },
+  { field: 'profiles', table: 'profiles', key: 'id' }
 ];
 export const KV_FIELDS = ['version', 'queue', 'meta'];
 
@@ -113,7 +116,7 @@ export function inTransaction(db, fn) {
 
 /** Il catalogo completo, nella stessa forma dell'oggetto che era libreria.json. */
 export function readCatalogFrom(db) {
-  const catalog = { version: 1, videos: {}, sources: {}, channelAvatars: {}, queue: [], meta: {} };
+  const catalog = { version: 1, videos: {}, sources: {}, channelAvatars: {}, profiles: {}, queue: [], meta: {} };
   for (const { field, table, key } of COLLECTIONS) {
     for (const row of db.prepare(`SELECT ${key} AS k, data FROM ${table}`).all()) {
       catalog[field][row.k] = JSON.parse(row.data);

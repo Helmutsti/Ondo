@@ -3,6 +3,7 @@ import { getPaths } from '../config.js';
 import { DOWNLOAD_STATE, migrateVideoToFlags, migrateVideoToSources, normalizeVideoAxes } from './catalogSchema.js';
 import { locateCurrentFile, buildVideoFileIndex } from '../services/libraryService.js';
 import { getDb, onDbClosed, writeTransaction } from './db.js';
+import { ensureProfiles } from './profiles.js';
 import { COLLECTIONS, KV_FIELDS, readCatalogFrom } from './sqlite.js';
 
 // Il catalogo vive in data/libreria.db (vedi sqlite.js) ma i servizi lo usano
@@ -169,6 +170,9 @@ function reconcileOnLoad(cat) {
     cat.queue = [];
     changed = true;
   }
+  // Profili creator: al primo avvio ogni canale diventa un profilo a sé, con
+  // la foto che aveva già. Poi ogni canale nuovo ne riceve uno alla lettura.
+  if (ensureProfiles(cat)) changed = true;
   return changed;
 }
 

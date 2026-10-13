@@ -47,6 +47,11 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
   const archiveAction = actions.find((a) => a.kind === 'hide' || a.kind === 'unhide');
   const otherActions = actions.filter((a) => a.kind !== 'hide' && a.kind !== 'unhide');
   const key = channelKey(video);
+  // Il profilo creator del video (arriva dal server); i vecchi link per canale
+  // restano come ripiego e reindirizzano comunque al profilo.
+  const creatorPath = video.channel?.profileId
+    ? `/creators/${encodeURIComponent(video.channel.profileId)}`
+    : key ? `/channels/${encodeURIComponent(key)}` : null;
   // Coda di riproduzione effimera (M52): solo sui video scaricati (senza file
   // locale non c'è nulla da autoplayare quando gli tocca il turno) — stesso
   // vincolo del CLI, che offre "Aggiungi alla coda" solo tra i già scaricati.
@@ -179,7 +184,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
               <FileDown size={15} />Aggiorna metadati
             </button>
             {key && (
-              <Link className="menu-item" to={`/channels/${encodeURIComponent(key)}`} onClick={() => setMenuOpen(false)}>
+              <Link className="menu-item" to={creatorPath} onClick={() => setMenuOpen(false)}>
                 <User size={15} />Mostra profilo
               </Link>
             )}
@@ -239,7 +244,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
       </Link>
       <div className="card-info">
         {key ? (
-          <Link to={`/channels/${encodeURIComponent(key)}`} className="avatar">
+          <Link to={creatorPath} className="avatar">
             {video.channel?.avatarUrl ? <img className="avatar-photo" src={video.channel.avatarUrl} alt="" /> : channelInitial(video)}
           </Link>
         ) : (

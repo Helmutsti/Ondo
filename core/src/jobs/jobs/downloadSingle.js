@@ -1,7 +1,6 @@
 import { readCatalog, updateCatalog, claimVideosForDownload } from '../../catalog/catalogStore.js';
 import { DOWNLOAD_STATE } from '../../catalog/catalogSchema.js';
 import { downloadVideo } from '../../ytdlp/ytdlpWrapper.js';
-import { syncChannelAvatars } from '../../services/channelAvatarService.js';
 import { recordDownloadFailure } from '../../services/presenceService.js';
 
 export async function downloadSingleJob(params, { log, progress, signal }) {
@@ -29,16 +28,6 @@ export async function downloadSingleJob(params, { log, progress, signal }) {
       });
     });
     log(`✔ ${videoId} scaricato con successo.`);
-
-    // Come in addVideoJob/enrichSourceJob: un video può introdurre un creator
-    // ancora senza foto profilo (es. scaricato subito da un link, senza mai
-    // passare da "aggiungi"). force:false salta chi ce l'ha già.
-    try {
-      const a = await syncChannelAvatars({ force: false });
-      if (a.fetchedCount) log(`Foto profilo creator scaricata (${a.fetchedCount}).`);
-    } catch (err) {
-      log(`Foto profilo creator non aggiornata: ${err.message}`);
-    }
 
     return { downloaded: 1, failed: 0 };
   } catch (err) {

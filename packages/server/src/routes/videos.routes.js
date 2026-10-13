@@ -3,7 +3,6 @@ import {
   listVideos,
   getVideo,
   listAvailable,
-  listChannels,
   listVideosByChannel,
   setVideoHidden,
   setVideoFavorite,
@@ -15,8 +14,7 @@ import {
   prepareSingleVideoDownload,
   analyzeVideoDownload,
   triggerJob,
-  syncChannelAvatars,
-  getChannelAvatarMap
+  getCreatorIndex
 } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
 import { toPublicVideo } from '../lib/publicVideo.js';
@@ -27,12 +25,12 @@ videosRouter.get('/videos', asyncRoute(async (req, res) => {
   // Il catalogo intero viene passato al frontend, che filtra per categoria
   // derivata client-side (i video sono già tutti in memoria, vedi CatalogPage/
   // Libreria). Nessun filtro server-side sullo stato: gli assi sono ortogonali.
-  const [videos, avatars] = await Promise.all([listVideos(), getChannelAvatarMap()]);
+  const [videos, avatars] = await Promise.all([listVideos(), getCreatorIndex()]);
   res.json(videos.map((v) => toPublicVideo(v, avatars)));
 }));
 
 videosRouter.get('/videos/available', asyncRoute(async (req, res) => {
-  const [videos, avatars] = await Promise.all([listAvailable(), getChannelAvatarMap()]);
+  const [videos, avatars] = await Promise.all([listAvailable(), getCreatorIndex()]);
   res.json(videos.map((v) => toPublicVideo(v, avatars)));
 }));
 
@@ -88,49 +86,20 @@ videosRouter.post('/videos/:id/download', asyncRoute(async (req, res) => {
 
 videosRouter.get('/search', asyncRoute(async (req, res) => {
   const limit = req.query.limit ? Number(req.query.limit) : undefined;
-  const [results, avatars] = await Promise.all([searchVideos(req.query.q, { limit }), getChannelAvatarMap()]);
+  const [results, avatars] = await Promise.all([searchVideos(req.query.q, { limit }), getCreatorIndex()]);
   res.json(results.map((v) => toPublicVideo(v, avatars)));
-}));
-
-videosRouter.get('/channels', asyncRoute(async (req, res) => {
-  const [channels, avatars] = await Promise.all([
-    listChannels(),
-    getChannelAvatarMap()
-  ]);
-  res.json(channels.map((c) => {
-    const avatar = avatars[c.key];
-    return {
-      ...c,
-      // Cache-bust con fetchedAt: senza, un refresh forzato che riscrive lo
-      // stesso filename (stessa estensione) resterebbe nascosto dalla cache
-      // del browser sullo stesso URL (M42).
-      avatarUrl: avatar?.localPath
-        ? `/media/avatars/${encodeURIComponent(avatar.localPath)}?v=${encodeURIComponent(avatar.fetchedAt ?? '')}`
-        : null
-    };
-  }));
-}));
-
-// Manutenzione: ri-sincronizza le foto profilo dei canali (M14). Non in
-// library.routes.js (specifico per operazioni a rischio reale sui file
-// video su disco, da cui il suo dryRun) — questa è "tira dati freschi da
-// YouTube", stessa famiglia concettuale di POST /api/sync.
-videosRouter.post('/channels/avatars/sync', asyncRoute(async (req, res) => {
-  const force = req.body?.force === true;
-  const channelKey = typeof req.body?.channelKey === 'string' ? req.body.channelKey : null;
-  res.json(await syncChannelAvatars({ force, channelKey }));
 }));
 
 videosRouter.get('/channels/:key/videos', asyncRoute(async (req, res) => {
   const [videos, avatars] = await Promise.all([
     listVideosByChannel(req.params.key),
-    getChannelAvatarMap()
+    getCreatorIndex()
   ]);
   res.json(videos.map((v) => toPublicVideo(v, avatars)));
 }));
 
 videosRouter.get('/videos/:id', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([getVideo(req.params.id), getChannelAvatarMap()]);
+  const [video, avatars] = await Promise.all([getVideo(req.params.id), getCreatorIndex()]);
   res.json(toPublicVideo(video, avatars));
 }));
 
@@ -142,27 +111,27 @@ videosRouter.get('/videos/:id/metadata', asyncRoute(async (req, res) => {
 // "Aggiorna metadati" (M31): ri-scarica metadati + copertina; sui rimossi fa da
 // ri-verifica (ripristina se il video è tornato, altrimenti non tocca nulla).
 videosRouter.post('/videos/:id/metadata/refresh', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([refreshVideoMetadata(req.params.id), getChannelAvatarMap()]);
+  const [video, avatars] = await Promise.all([refreshVideoMetadata(req.params.id), getCreatorIndex()]);
   res.json(toPublicVideo(video, avatars));
 }));
 
 // Nasconde/mostra un video (asse `hidden` del modello a flag, M25) — sostituisce
 // il vecchio /decision (new/pending/excluded, ciclo di revisione ora rimosso).
 videosRouter.post('/videos/:id/hidden', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([setVideoHidden(req.params.id, req.body?.hidden === true), getChannelAvatarMap()]);
+  const [video, avatars] = await Promise.all([setVideoHidden(req.params.id, req.body?.hidden === true), getCreatorIndex()]);
   res.json(toPublicVideo(video, avatars));
 }));
 
 // Preferito (asse `favorite` del modello a flag, M43) — stesso pattern di /hidden.
 videosRouter.post('/videos/:id/favorite', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([setVideoFavorite(req.params.id, req.body?.favorite === true), getChannelAvatarMap()]);
+  const [video, avatars] = await Promise.all([setVideoFavorite(req.params.id, req.body?.favorite === true), getCreatorIndex()]);
   res.json(toPublicVideo(video, avatars));
 }));
 
 // Cancella solo il file scaricato dal disco (M30), download → none; la scheda
 // resta in libreria (metadati/copertina intatti). Ramo "No" di "Vuoi tenere il video?".
 videosRouter.delete('/videos/:id/file', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([deleteVideoFile(req.params.id), getChannelAvatarMap()]);
+  const [video, avatars] = await Promise.all([deleteVideoFile(req.params.id), getCreatorIndex()]);
   res.json(toPublicVideo(video, avatars));
 }));
 

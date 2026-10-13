@@ -2,7 +2,6 @@ import { readCatalog, updateCatalog } from '../../catalog/catalogStore.js';
 import { PRESENCE, DOWNLOAD_STATE } from '../../catalog/catalogSchema.js';
 import { fetchVideoMetadata } from '../../ytdlp/ytdlpWrapper.js';
 import { classifyYtdlpError, errorRecord, shouldStopRun } from '../../ytdlp/errorClassifier.js';
-import { syncChannelAvatars } from '../../services/channelAvatarService.js';
 import { applyRemoteVerdict, checkVideoPresence, needsPresenceCheck } from '../../services/presenceService.js';
 
 // Errori di fila con la stessa categoria dopo cui l'esecuzione si ferma: se
@@ -149,19 +148,6 @@ export async function enrichSourceJob(params, { log, progress }) {
   }
 
   progress(100);
-
-  // Foto profilo dei creator (M14): a fine sync scarica quelle mancanti, così un
-  // creator appena aggiunto ottiene l'avatar senza un'azione manuale separata
-  // (force:false → salta i creator che ce l'hanno già). Non blocca il job.
-  if (!breaker.stopped) {
-    try {
-      log('Aggiornamento foto profilo dei creator…');
-      const a = await syncChannelAvatars({ force: false });
-      log(`Foto creator: ${a.fetchedCount} scaricate, ${a.skippedCount} già presenti${a.failedCount ? `, ${a.failedCount} non trovate` : ''}.`);
-    } catch (err) {
-      log(`Foto creator non aggiornate: ${err.message}`);
-    }
-  }
 
   const summary = { verified, enriched, failed, removed, total: toEnrich.length };
   if (breaker.stopped) {

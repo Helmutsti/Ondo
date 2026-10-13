@@ -2,7 +2,6 @@ import { readCatalog, updateCatalog } from '../../catalog/catalogStore.js';
 import { prepareSingleVideoDownload } from '../../services/singleVideoService.js';
 import { fetchVideoMetadata } from '../../ytdlp/ytdlpWrapper.js';
 import { classifyYtdlpError, errorRecord } from '../../ytdlp/errorClassifier.js';
-import { syncChannelAvatars } from '../../services/channelAvatarService.js';
 import { applyRemoteVerdict } from '../../services/presenceService.js';
 
 const ACTION_LABEL = {
@@ -57,18 +56,6 @@ export async function addVideoJob({ url }, { log, progress }) {
     });
     if (outcome === 'removed') log(`⊘ ${classification.hint}`);
     else log(`✘ Metadati completi non recuperati [${classification.category}]: ${classification.hint} — ${classification.message}`);
-  }
-
-  // Un video singolo può introdurre un creator mai visto prima nel catalogo
-  // (bug corretto: prima solo enrichSourceJob, cioè le playlist, scaricava la
-  // foto profilo automaticamente — un video aggiunto da solo lasciava il
-  // creator senza foto). force:false salta chi ce l'ha già: economico anche
-  // se il creator esisteva già.
-  try {
-    const a = await syncChannelAvatars({ force: false });
-    if (a.fetchedCount) log(`Foto profilo creator scaricata (${a.fetchedCount}).`);
-  } catch (err) {
-    log(`Foto profilo creator non aggiornata: ${err.message}`);
   }
 
   progress(100);

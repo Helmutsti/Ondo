@@ -15,7 +15,11 @@ import { prepareSingleVideoDownload, analyzeVideoDownload } from './services/sin
 import { getRawMetadata, refreshVideoMetadata } from './services/metadataService.js';
 import { searchVideos } from './services/searchService.js';
 import { reorganizeLibrary, deleteVideoFile, deleteVideoCompletely, removeVideoFromLibrary } from './services/libraryService.js';
-import { syncChannelAvatars, getChannelAvatarMap } from './services/channelAvatarService.js';
+import { syncChannelAvatars, fetchChannelAvatar } from './services/channelAvatarService.js';
+import {
+  listProfiles, getProfile, listProfileVideos, getProfileIdForChannel, getCreatorIndex, renameProfile, setProfilePinned,
+  mergeChannelsIntoProfile, splitChannelFromProfile, useChannelPhoto, setCustomPhoto, clearProfilePhoto, MAX_CUSTOM_AVATAR_BYTES
+} from './services/profileService.js';
 import { createBackup, restoreBackup } from './services/backupService.js';
 import { startBackupScheduler } from './services/backupScheduler.js';
 import { clearScratch, scratchRoot } from './lib/scratch.js';
@@ -189,9 +193,23 @@ export {
   // M86 — «Togli dalla libreria»: la scheda esce, i file si cancellano solo se
   // richiesto e senza il gate "prima archivialo" (era `Library::remove`)
   removeVideoFromLibrary,
-  // manutenzione: foto profilo dei canali (M14)
+  // foto dei canali: solo su richiesta (un canale, o tutti dal comando della CLI)
   syncChannelAvatars,
-  getChannelAvatarMap,
+  fetchChannelAvatar,
+  // profili creator: uno o più canali della stessa persona, con nome e foto scelti a mano
+  listProfiles,
+  getProfile,
+  listProfileVideos,
+  getProfileIdForChannel,
+  getCreatorIndex,
+  renameProfile,
+  setProfilePinned,
+  mergeChannelsIntoProfile,
+  splitChannelFromProfile,
+  useChannelPhoto,
+  setCustomPhoto,
+  clearProfilePhoto,
+  MAX_CUSTOM_AVATAR_BYTES,
   // backup/ripristino del catalogo in .zip (M36)
   createBackup,
   restoreBackup,

@@ -51,6 +51,8 @@ export function createEmptyCatalog() {
     videos: {},
     sources: {},
     channelAvatars: {},
+    // Profili creator (uno o più canali della stessa persona), vedi profileService.
+    profiles: {},
     // I link incollati che NON hanno ancora un id (M85). Un link appena
     // incollato non è ancora un video: finché yt-dlp non l'ha risolto non ha id,
     // titolo né autore, quindi non è rappresentabile in `videos` — che è una

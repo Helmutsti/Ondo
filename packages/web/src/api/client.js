@@ -68,9 +68,28 @@ export const downloadVideoById = (id, { audioStrategy, deleteFirst, maxHeight } 
 
 export const searchVideos = (q, limit) => request(`/api/search${qs({ q, limit })}`);
 
-export const listChannels = () => request('/api/channels');
-export const listVideosByChannel = (key) =>
-  request(`/api/channels/${encodeURIComponent(key)}/videos`);
+// Profili creator: uno o più canali della stessa persona.
+const profilePath = (id, rest = '') => `/api/profiles/${encodeURIComponent(id)}${rest}`;
+export const listProfiles = () => request('/api/profiles');
+export const getProfile = (id) => request(profilePath(id));
+export const listProfileVideos = (id) => request(profilePath(id, '/videos'));
+export const updateProfile = (id, changes) =>
+  request(profilePath(id), { method: 'PATCH', body: JSON.stringify(changes) });
+export const mergeChannels = (id, channelKeys) =>
+  request(profilePath(id, '/channels'), { method: 'POST', body: JSON.stringify({ channelKeys }) });
+// Risponde con il profilo NUOVO, quello che ora contiene il canale.
+export const splitChannel = (id, channelKey) =>
+  request(profilePath(id, `/channels/${encodeURIComponent(channelKey)}/split`), { method: 'POST' });
+export const setChannelPhoto = (id, channelKey) =>
+  request(profilePath(id, '/avatar'), { method: 'POST', body: JSON.stringify({ channelKey }) });
+export const uploadProfilePhoto = (id, file) =>
+  request(profilePath(id, '/avatar'), { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+export const clearProfilePhoto = (id) => request(profilePath(id, '/avatar'), { method: 'DELETE' });
+// Scarica da YouTube la foto di un canale (solo su richiesta).
+export const fetchChannelPhoto = (channelKey) =>
+  request(`/api/channels/${encodeURIComponent(channelKey)}/avatar/fetch`, { method: 'POST' });
+export const getProfileIdForChannel = (channelKey) =>
+  request(`/api/channels/${encodeURIComponent(channelKey)}/profile`);
 
 export const listSources = () => request('/api/sources');
 export const addSource = (url) => request('/api/sources', { method: 'POST', body: JSON.stringify({ url }) });
@@ -89,12 +108,6 @@ export const clearJobs = () => request('/api/jobs', { method: 'DELETE' });
 
 export const reorganizeLibrary = (dryRun) =>
   request('/api/library/reorganize', { method: 'POST', body: JSON.stringify({ dryRun }) });
-
-export const syncChannelAvatars = (force, channelKey) =>
-  request('/api/channels/avatars/sync', {
-    method: 'POST',
-    body: JSON.stringify({ ...(force ? { force } : {}), ...(channelKey ? { channelKey } : {}) })
-  });
 
 // Backup: il download avviene via link diretto (<a href={BACKUP_URL}>), così il
 // browser scarica il .zip con il nome dato dall'header Content-Disposition.

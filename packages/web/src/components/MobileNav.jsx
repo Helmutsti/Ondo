@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Rss, Plus, Archive, Menu, Settings, X } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Home, Rss, Plus, Archive, Menu, Settings, X, Users, ArrowRight } from 'lucide-react';
+import { ProfileAvatar } from './ProfileAvatar.jsx';
 
 // Barra in basso su schermo stretto: le voci della sidebar desktop (Home ·
 // Sorgenti · Archiviati) più "+" per aggiungere un link e "Menu", che apre un
 // pannello dal basso con quello che non ci sta — Impostazioni e i creator, che
 // su mobile prima non erano raggiungibili affatto. La ricerca resta nella barra
 // in alto, sempre visibile: una voce "Cerca" qui la duplicava.
-export function MobileNav({ channels = [] }) {
+export function MobileNav({ profiles = [] }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const cls = ({ isActive }) => (isActive ? 'active' : '');
@@ -30,7 +31,8 @@ export function MobileNav({ channels = [] }) {
     };
   }, [menuOpen]);
 
-  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/channels/');
+  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/creators') || location.pathname.startsWith('/channels/');
+  const pinned = profiles.filter((p) => p.pinned);
 
   return (
     <>
@@ -61,17 +63,21 @@ export function MobileNav({ channels = [] }) {
               <NavLink to="/settings" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
                 <Settings size={18} />Impostazioni
               </NavLink>
+              <NavLink to="/creators" end className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
+                <Users size={18} />Creator
+              </NavLink>
               <div className="side-div"></div>
-              <div className="side-sec">Creator</div>
-              {channels.length === 0 && <div className="side-empty">Nessun creator ancora</div>}
-              {channels.map((c) => (
-                <NavLink key={c.key} to={`/channels/${encodeURIComponent(c.key)}`} className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
-                  <span className="avatar">
-                    {c.avatarUrl ? <img className="avatar-photo" src={c.avatarUrl} alt="" /> : (c.name?.charAt(0)?.toUpperCase() ?? '?')}
-                  </span>
-                  <span className="side-label discreet-text">{c.name}</span>
+              <div className="side-sec">Fissati</div>
+              {pinned.length === 0 && <div className="side-empty">Fissa un creator dalla sua pagina per averlo qui.</div>}
+              {pinned.map((p) => (
+                <NavLink key={p.id} to={`/creators/${encodeURIComponent(p.id)}`} className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
+                  <ProfileAvatar url={p.avatarUrl} name={p.name} />
+                  <span className="side-label discreet-text">{p.name}</span>
                 </NavLink>
               ))}
+              {profiles.length > 0 && (
+                <Link to="/creators" className="side-all">Tutti i creator ({profiles.length}) <ArrowRight size={13} /></Link>
+              )}
             </div>
           </div>
         </div>

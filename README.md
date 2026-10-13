@@ -136,6 +136,8 @@ Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resour
 
 **Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Finiscono in `config\cookies.txt`, accanto alle impostazioni: sopravvivono agli aggiornamenti dell'immagine.
 
+**Creator con più canali.** In **Creator** ogni canale nasce come profilo a sé. Se una persona ha più canali, apri il suo profilo e usa «Unisci un altro canale»; dal menu ⋮ di un canale puoi separarlo di nuovo. La foto del profilo si sceglie cliccandola: quella di uno dei suoi canali (scaricata da YouTube solo quando lo chiedi) o un'immagine tua. In sidebar restano i creator che fissi.
+
 **Usare Ondo con qualcuno che guarda lo schermo.** In **Impostazioni → Modalità discreta** puoi sfocare le sole immagini (copertine, foto dei creator, player) oppure anche titoli e nomi. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta vale solo per il browser in cui la fai.
 
 **Imporre una versione tua di yt-dlp**, senza aspettare un'immagine nuova: mettila in `config\tools\` (la cartella accanto al compose, già montata) col nome `yt-dlp_linux`. Ha la precedenza su quella dell'immagine. Deve essere il binario **Linux**: un `.exe` di Windows nel container non parte.
@@ -280,7 +282,7 @@ La libreria è una cartella qualsiasi, dove vuoi nel sistema, fatta così:
 <libreria>/
   videos/                 i file video (o altrove: vedi conf.json)
   thumbnails/             le copertine
-  avatars/                le foto profilo dei canali
+  avatars/                le foto dei canali e quelle caricate per i profili creator
   data/
     libreria.db           il catalogo e i metadati grezzi di yt-dlp (SQLite)
     conf.json             le impostazioni della libreria
