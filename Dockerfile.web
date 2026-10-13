@@ -38,14 +38,16 @@ RUN apt-get update \
 # SALVATO come yt-dlp_linux, che è il nome cercato a runtime a prescindere
 # dall'architettura (expectedToolNames in core/src/config.js).
 # ffmpeg: build STATICHE di BtbN (non si portano dietro DLL/librerie sparse).
+# Dal tag fisso `latest`, non da /releases/latest: quello punta all'ultima
+# auto-build, i cui file hanno la data nel nome (404 per qualche minuto al giorno).
 #
 # Solo 64 bit (amd64, arm64): la variante armv7 per i NAS ARM a 32 bit è stata
 # tolta — Ondo non gira su NAS, e i suoi binari arrivavano da fonti diverse
 # (bundle yt-dlp "onedir", ffmpeg da un sito terzo spesso irraggiungibile).
 RUN set -eux; \
     case "$TARGETARCH" in \
-      amd64) ytdlp_asset='yt-dlp_linux';         ffmpeg_url='https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz' ;; \
-      arm64) ytdlp_asset='yt-dlp_linux_aarch64'; ffmpeg_url='https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linuxarm64-gpl.tar.xz' ;; \
+      amd64) ytdlp_asset='yt-dlp_linux';         ffmpeg_url='https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz' ;; \
+      arm64) ytdlp_asset='yt-dlp_linux_aarch64'; ffmpeg_url='https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz' ;; \
       *) echo "TARGETARCH non supportata: '$TARGETARCH'" >&2; exit 1 ;; \
     esac; \
     mkdir -p /out /tmp/ff; \
