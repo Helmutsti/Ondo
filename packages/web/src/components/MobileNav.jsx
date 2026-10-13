@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { Home, Rss, Plus, Archive, Menu, Settings, X, Users, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Rss, Plus, Menu, Settings, X, Users, ArrowRight } from 'lucide-react';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
 
 // Barra in basso su schermo stretto: le voci della sidebar desktop (Home ·
@@ -31,20 +31,20 @@ export function MobileNav({ profiles = [] }) {
     };
   }, [menuOpen]);
 
-  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/creators') || location.pathname.startsWith('/channels/');
+  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/creators/') || location.pathname.startsWith('/channels/');
   const pinned = profiles.filter((p) => p.pinned);
 
   return (
     <>
       <nav className="mobile-nav">
-        <NavLink to="/" end className={cls}><Home size={20} /><span>Home</span></NavLink>
+        <NavLink to="/" end className={cls}><LayoutGrid size={20} /><span>Libreria</span></NavLink>
         <NavLink to="/sources" className={cls}><Rss size={20} /><span>Sorgenti</span></NavLink>
         {/* "+" porta al campo "Aggiungi" di Sorgenti, già attivo (vedi
             SourcesPage: location.state.focusAdd). */}
         <NavLink to="/sources" state={{ focusAdd: true }} className="plus" aria-label="Aggiungi playlist o video">
           <Plus size={22} />
         </NavLink>
-        <NavLink to="/archived" className={cls}><Archive size={20} /><span>Archiviati</span></NavLink>
+        <NavLink to="/creators" className={cls}><Users size={20} /><span>Creator</span></NavLink>
         <button type="button" className={inMenu || menuOpen ? 'active' : ''} onClick={() => setMenuOpen(true)} aria-expanded={menuOpen}>
           <Menu size={20} /><span>Menu</span>
         </button>
@@ -62,9 +62,6 @@ export function MobileNav({ profiles = [] }) {
             <div className="sheet-body">
               <NavLink to="/settings" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
                 <Settings size={18} />Impostazioni
-              </NavLink>
-              <NavLink to="/creators" end className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
-                <Users size={18} />Creator
               </NavLink>
               <div className="side-div"></div>
               <div className="side-sec">Fissati</div>

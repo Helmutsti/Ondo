@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout.jsx';
 import { CatalogPage } from './pages/CatalogPage.jsx';
 import { VideoDetailPage } from './pages/VideoDetailPage.jsx';
@@ -7,7 +7,6 @@ import { ChannelPage } from './pages/ChannelPage.jsx';
 import { CreatorsPage } from './pages/CreatorsPage.jsx';
 import { CreatorPage } from './pages/CreatorPage.jsx';
 import { SourcesPage } from './pages/SourcesPage.jsx';
-import { ArchivedPage } from './pages/ArchivedPage.jsx';
 import { SettingsPage } from './pages/SettingsPage.jsx';
 
 export default function App() {
@@ -21,7 +20,8 @@ export default function App() {
         <Route path="/creators/:id" element={<CreatorPage />} />
         <Route path="/channels/:key" element={<ChannelPage />} />
         <Route path="/sources" element={<SourcesPage />} />
-        <Route path="/archived" element={<ArchivedPage />} />
+        {/* Archiviati è diventata la vista "Nascosti" della Libreria. */}
+        <Route path="/archived" element={<Navigate to="/?vista=nascosti" replace />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

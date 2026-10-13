@@ -1,4 +1,4 @@
-import { getJob, analyzeDownload, downloadVideoById, getConfig } from '../api/client.js';
+import { getJob, listJobs, analyzeDownload, downloadVideoById, getConfig } from '../api/client.js';
 import { showToast, updateToast, dismissToast } from './toast.js';
 import { appNavigate } from './navigation.js';
 import { trackVideoDownload, untrackVideoDownload } from './downloadTracker.js';
@@ -179,4 +179,80 @@ export async function startDownload(videoId, { triggerJob, onSettled, title }) {
   } finally {
     if (jobId) untrackVideoDownload(videoId);
   }
+}
+
+// Download di gruppo (selezione multipla in Libreria): UNA sola scelta di
+// qualità per tutto il gruppo — nessuna, se in Impostazioni c'è una qualità
+// predefinita — e poi un job per video, così la coda rispetta i download in
+// parallelo e ogni card mostra il proprio avanzamento. Niente analisi dei
+// formati video per video (sarebbero N sonde prima di partire): l'audio
+// segue il default del server.
+const BULK_HEIGHTS = [2160, 1440, 1080, 720, 480];
+
+export async function startBulkDownload(ids, { onSettled } = {}) {
+  if (!ids.length) return;
+  let quality;
+  try {
+    quality = (await getConfig()).quality;
+  } catch {
+    quality = { kind: 'ask', height: null };
+  }
+  let maxHeight; // undefined = default di config
+  if (quality.kind === 'ask') {
+    const picked = await radioDialog({
+      title: `Scaricare ${ids.length} video`,
+      message: 'A quale risoluzione massima? Per i video che non ci arrivano si prende la migliore disponibile.',
+      options: [{ value: 'max', label: 'Massima disponibile' }, ...BULK_HEIGHTS.map((h) => ({ value: h, label: `Fino a ${h}p` }))],
+      defaultValue: 'max',
+      confirmLabel: `Scarica ${ids.length}`
+    });
+    if (picked == null) return;
+    maxHeight = picked === 'max' ? null : picked;
+  }
+
+  const toastId = showToast(`${ids.length} download in coda…`, 'info', 0, () => appNavigate('/sources'));
+  const jobs = [];
+  for (const id of ids) {
+    try {
+      const { jobId } = await downloadVideoById(id, { maxHeight });
+      trackVideoDownload(id, jobId);
+      jobs.push({ id, jobId });
+    } catch {
+      // un video che non parte non ferma gli altri: conta tra i falliti
+      jobs.push({ id, jobId: null });
+    }
+  }
+  onSettled?.();
+
+  let done = 0;
+  let failed = jobs.filter((j) => !j.jobId).length;
+  const update = () => updateToast(toastId, {
+    message: `Download: ${done} completati${failed ? `, ${failed} falliti` : ''} su ${ids.length}…`,
+    type: 'info'
+  }, 0);
+  update();
+  // Un solo controllo dell'elenco dei job ogni 2 s per tutto il gruppo (non
+  // un polling per job: con 100 video sarebbero centinaia di richieste al secondo).
+  const pending = new Map(jobs.filter((j) => j.jobId).map((j) => [j.jobId, j.id]));
+  while (pending.size > 0) {
+    await new Promise((r) => setTimeout(r, 2000));
+    let list;
+    try { list = await listJobs(); } catch { continue; }
+    const byId = new Map(list.map((j) => [j.id, j]));
+    let changed = false;
+    for (const [jobId, videoId] of [...pending]) {
+      const job = byId.get(jobId);
+      // Sparito dallo storico (cancellato a mano): lo si considera chiuso.
+      if (job && job.status !== 'success' && job.status !== 'failed' && job.status !== 'cancelled') continue;
+      pending.delete(jobId);
+      untrackVideoDownload(videoId);
+      if (job?.status === 'success') done += 1; else failed += 1;
+      changed = true;
+    }
+    if (changed) { update(); onSettled?.(); }
+  }
+  updateToast(toastId, {
+    message: `Download finiti: ${done} completati${failed ? `, ${failed} falliti (li trovi in «Problemi»)` : ''}.`,
+    type: failed ? 'error' : 'success'
+  });
 }

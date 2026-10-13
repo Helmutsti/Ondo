@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Home, Rss, Search, Archive, Settings, X, Users, Pin, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Rss, Search, Settings, X, Users, Pin, ArrowRight } from 'lucide-react';
 import { listProfiles } from '../api/client.js';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
 import { onProfilesChanged } from '../lib/profileEvents.js';
@@ -73,10 +73,9 @@ export function Layout() {
       </header>
       <div className="body-area">
         <nav className="sidebar">
-          <NavLink to="/" end className={navCls}><Home size={16} />Home</NavLink>
+          <NavLink to="/" end className={navCls}><LayoutGrid size={16} />Libreria</NavLink>
           <NavLink to="/creators" end className={navCls}><Users size={16} />Creator</NavLink>
           <NavLink to="/sources" className={navCls}><Rss size={16} />Sorgenti</NavLink>
-          <NavLink to="/archived" className={navCls}><Archive size={16} />Archiviati</NavLink>
           <NavLink to="/settings" className={navCls}><Settings size={16} />Impostazioni</NavLink>
           <div className="side-div"></div>
           <div className="side-sec"><Pin size={11} style={{ verticalAlign: -1 }} /> Fissati</div>

@@ -1,88 +1,195 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Star } from 'lucide-react';
-import { listVideos, listSources, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Star, SquareCheck, LayoutGrid, List, CloudDownload, FileDown, ListPlus, EyeOff, Eye, X, Archive, CheckCheck } from 'lucide-react';
+import { listVideos, listSources, listProfiles, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
-import { StatusChips } from '../components/StatusChips.jsx';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
-import { channelKey } from '../lib/format.js';
-import { startDownload } from '../lib/downloadActions.js';
-import { showToast } from '../lib/toast.js';
+import { startDownload, startBulkDownload } from '../lib/downloadActions.js';
+import { LIBRARY_VIEWS, countViews, viewByValue, isLost, isSaved } from '../lib/libraryFilters.js';
+import { statusColor } from '../lib/status.js';
+import { addToQueue } from '../lib/queueStore.js';
+import { showToast, updateToast } from '../lib/toast.js';
 
 const SINGLE = '__single__';
-// Chip della Home: sottoinsieme mirato (gli archiviati vivono in "Archiviati").
-const HOME_CHIPS = [
-  { value: 'available', label: 'Da scaricare' },
-  { value: 'failed', label: 'Falliti' }
-];
+const LAYOUT_KEY = 'ondo:libraryLayout';
 
+function loadLayout() {
+  try { return localStorage.getItem(LAYOUT_KEY) === 'row' ? 'row' : 'grid'; } catch { return 'grid'; }
+}
+
+// Libreria (ex Home): tutto il catalogo, con le viste esplicite in chip e i
+// filtri nell'URL — tornando indietro da un video li ritrovi come li avevi
+// lasciati. "Nascosti" sostituisce la vecchia pagina Archiviati.
 export function CatalogPage() {
+  const [params, setParams] = useSearchParams();
+  const view = viewByValue(params.get('vista'));
+  const sort = params.get('ordine') ?? 'uploadDate';
+  const creator = params.get('creator') ?? '';
+  const source = params.get('fonte') ?? '';
+  const lostOnly = params.get('persi') === '1';
+
   const [videos, setVideos] = useState(null);
   const [sources, setSources] = useState([]);
-  const [category, setCategory] = useState(null);
-  const [sort, setSort] = useState('uploadDate');
-  const [creator, setCreator] = useState('');
-  const [source, setSource] = useState('');
-  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [profiles, setProfiles] = useState([]);
   const [error, setError] = useState(null);
+  const [layout, setLayout] = useState(loadLayout);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const lastClicked = useRef(null);
   const { requestHide, modal } = useHideWithPrompt({ onDone: reload, onError: setError });
-  useTitle('Home');
+  useTitle('Libreria');
 
   function reload() {
     listVideos().then(setVideos).catch((e) => setError(e.message));
   }
   useEffect(reload, []);
   useEffect(() => { listSources().then(setSources).catch(() => {}); }, []);
+  useEffect(() => { listProfiles().then(setProfiles).catch(() => {}); }, []);
 
-  // La Home mostra la libreria ATTIVA: esclude gli archiviati (nascosti), che
-  // vivono nella pagina "Archiviati".
-  const visible = useMemo(() => (videos ?? []).filter((v) => !v.hidden), [videos]);
+  function setParam(key, value) {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value); else next.delete(key);
+      if (key === 'vista') next.delete('persi');
+      return next;
+    }, { replace: true });
+  }
 
-  const counts = useMemo(() => {
-    const acc = {};
-    for (const v of visible) acc[v.category] = (acc[v.category] ?? 0) + 1;
-    // "Da scaricare" include anche i video in download (restano visibili lì
-    // finché non finiscono, invece di sparire per poi ricomparire altrove).
-    acc.available = (acc.available ?? 0) + (acc.downloading ?? 0);
-    return acc;
-  }, [visible]);
+  function chooseLayout(l) {
+    setLayout(l);
+    try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* solo per questa scheda */ }
+  }
 
-  const channelOptions = useMemo(() => {
-    const byKey = new Map();
-    for (const v of visible) {
-      const key = channelKey(v);
-      if (!key || byKey.has(key)) continue;
-      byKey.set(key, v.channel?.name ?? key);
-    }
-    return [...byKey.entries()].sort((a, b) => a[1].localeCompare(b[1], 'it', { sensitivity: 'base' }));
-  }, [visible]);
+  // Creator e fonte restringono anche i conteggi delle chip: il numero sulla
+  // chip è sempre quello che compare cliccandola.
+  const scoped = useMemo(() => {
+    let list = videos ?? [];
+    if (creator) list = list.filter((v) => v.channel?.profileId === creator);
+    if (source) list = list.filter((v) => (source === SINGLE ? !v.sources?.length : v.sources?.some((s) => s.sourceId === source)));
+    return list;
+  }, [videos, creator, source]);
 
-  const favoriteCount = useMemo(() => visible.filter((v) => v.favorite).length, [visible]);
+  const counts = useMemo(() => countViews(scoped), [scoped]);
 
   const filtered = useMemo(() => {
-    let list = visible;
-    // "Da scaricare" (available) resta valida anche per i video in download:
-    // ci restano finché non finiscono (successo o fallimento), invece di
-    // sparire subito all'avvio per poi ricomparire in un'altra categoria.
-    if (category) {
-      list = list.filter((v) => v.category === category || (category === 'available' && v.category === 'downloading'));
-    }
-    if (creator) list = list.filter((v) => channelKey(v) === creator);
-    if (source) list = list.filter((v) => (source === SINGLE ? !v.sources?.length : v.sources?.some((s) => s.sourceId === source)));
-    if (favoriteOnly) list = list.filter((v) => v.favorite);
+    let list = scoped.filter(view.fn);
+    if (view.value === 'spariti' && lostOnly) list = list.filter(isLost);
     return sortVideos(list, sort);
-  }, [visible, category, creator, source, favoriteOnly, sort]);
+  }, [scoped, view, lostOnly, sort]);
+
+  const removedStats = useMemo(() => {
+    const removed = scoped.filter((v) => v.presence === 'removed');
+    return { total: removed.length, saved: removed.filter(isSaved).length, lost: removed.filter(isLost).length };
+  }, [scoped]);
+
+  // Cambiando vista o filtri la selezione riparte da zero: selezionare qui e
+  // agire su video che non si vedono più sarebbe una sorpresa.
+  useEffect(() => { setSelected(new Set()); lastClicked.current = null; }, [view.value, creator, source, lostOnly]);
+
+  useEffect(() => {
+    if (!selectMode) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') exitSelect(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectMode]);
+
+  function exitSelect() {
+    setSelectMode(false);
+    setSelected(new Set());
+    lastClicked.current = null;
+  }
+
+  // Click = aggiungi/togli; Shift+click = tutto l'intervallo dall'ultimo click.
+  function toggleSelect(id, e) {
+    if (!selectMode) setSelectMode(true);
+    const ids = filtered.map((v) => v.id);
+    const index = ids.indexOf(id);
+    // Letto ORA: l'aggiornamento di stato qui sotto gira dopo che lastClicked
+    // è già passato al video appena cliccato.
+    const anchor = e?.shiftKey ? lastClicked.current : null;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (anchor != null) {
+        const from = ids.indexOf(anchor);
+        if (from !== -1) {
+          const [a, b] = from < index ? [from, index] : [index, from];
+          for (const x of ids.slice(a, b + 1)) next.add(x);
+          return next;
+        }
+      }
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    lastClicked.current = id;
+  }
+
+  function selectAll() {
+    setSelectMode(true);
+    setSelected(new Set(filtered.map((v) => v.id)));
+  }
+
+  const selectedVideos = filtered.filter((v) => selected.has(v.id));
+  const allSelected = filtered.length > 0 && selectedVideos.length === filtered.length;
+  const downloadable = selectedVideos.filter((v) => v.presence === 'present' && v.download === 'none');
+  const queueable = selectedVideos.filter((v) => v.download === 'downloaded');
+
+  async function bulkDownload() {
+    const ids = downloadable.map((v) => v.id);
+    exitSelect();
+    await startBulkDownload(ids, { onSettled: reload });
+  }
+
+  async function bulkMetadata() {
+    const list = selectedVideos;
+    exitSelect();
+    setBusy(true);
+    const toastId = showToast(`Aggiornamento metadati: 0 su ${list.length}…`, 'info', 0);
+    let failed = 0;
+    for (let i = 0; i < list.length; i++) {
+      try { await refreshMetadata(list[i].id); } catch { failed += 1; }
+      updateToast(toastId, { message: `Aggiornamento metadati: ${i + 1} su ${list.length}…` }, 0);
+    }
+    updateToast(toastId, {
+      message: `Metadati aggiornati: ${list.length - failed} su ${list.length}${failed ? ` (${failed} non riusciti)` : ''}.`,
+      type: failed ? 'error' : 'success'
+    });
+    setBusy(false);
+    reload();
+  }
+
+  function bulkQueue() {
+    for (const v of queueable) addToQueue(v);
+    showToast(`${queueable.length} video aggiunti alla coda.`, 'success', 2500);
+    exitSelect();
+  }
+
+  async function bulkHide(hidden) {
+    const list = selectedVideos;
+    exitSelect();
+    setBusy(true);
+    try {
+      for (const v of list) await setHidden(v.id, hidden);
+      showToast(hidden ? `${list.length} video nascosti.` : `${list.length} video di nuovo visibili.`, 'success');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+      reload();
+    }
+  }
 
   async function handleAction(id, kind) {
     try {
       if (kind === 'download') {
-        const title = visible.find((v) => v.id === id)?.title;
+        const title = filtered.find((v) => v.id === id)?.title;
         await startDownload(id, { triggerJob, onSettled: reload, title });
         return;
       }
       if (kind === 'hide') {
-        requestHide(visible.find((v) => v.id === id));
+        requestHide(filtered.find((v) => v.id === id));
         return;
       }
       if (kind === 'metadata') {
@@ -108,48 +215,129 @@ export function CatalogPage() {
     }
   }
 
+  const sortedProfiles = useMemo(() => [...profiles].sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' })), [profiles]);
+
   return (
     <>
-      <div className="page-head">
-        <h1>Home</h1>
+      <div className="page-head library-head">
+        <h1>Libreria</h1>
+        <div className="page-actions">
+          {view.value === 'da-scaricare' && counts['da-scaricare'] > 0 && !selectMode && (
+            <button className="btn" onClick={selectAll} title="Seleziona tutti i video da scaricare, poi «Scarica»">
+              <CheckCheck size={14} />Seleziona tutti ({filtered.length})
+            </button>
+          )}
+          <button className={`btn${selectMode ? ' btn-active' : ''}`} onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}>
+            <SquareCheck size={14} />{selectMode ? 'Fine' : 'Seleziona'}
+          </button>
+          <div className="seg" role="group" aria-label="Vista">
+            <button className={layout === 'grid' ? 'on' : ''} onClick={() => chooseLayout('grid')} title="Griglia" aria-label="Griglia"><LayoutGrid size={14} /></button>
+            <button className={layout === 'row' ? 'on' : ''} onClick={() => chooseLayout('row')} title="Lista" aria-label="Lista"><List size={14} /></button>
+          </div>
+        </div>
       </div>
       {error && <div className="notice error">{error}</div>}
-      <StatusChips
-        value={category}
-        counts={counts}
-        onChange={setCategory}
-        options={HOME_CHIPS}
-        extra={
-          <div className={`chip${favoriteOnly ? ' active' : ''}`} onClick={() => setFavoriteOnly((f) => !f)}>
-            <Star size={12} fill={favoriteOnly ? 'currentColor' : 'none'} />
-            Preferiti
-            {favoriteCount > 0 && <span className="count">{favoriteCount}</span>}
+
+      <div className="chips">
+        {LIBRARY_VIEWS.map((o) => (
+          <div
+            key={o.value}
+            className={`chip${view.value === o.value ? ' active' : ''}`}
+            onClick={() => setParam('vista', o.value === 'tutti' ? null : o.value)}
+          >
+            {o.star && <Star size={12} fill={view.value === o.value ? 'currentColor' : 'none'} />}
+            {o.dot && <span className="dot" style={{ background: statusColor(o.dot) }}></span>}
+            {o.label}
+            {counts[o.value] > 0 && <span className="count">{counts[o.value]}</span>}
           </div>
-        }
-      />
+        ))}
+      </div>
+
       <div className="filter-bar">
-        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordina per">
+        <select value={sort} onChange={(e) => setParam('ordine', e.target.value === 'uploadDate' ? null : e.target.value)} aria-label="Ordina per">
           {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select className={creator ? 'discreet-text' : undefined} value={creator} onChange={(e) => setCreator(e.target.value)} aria-label="Filtra per creator">
+        <select className={creator ? 'discreet-text' : undefined} value={creator} onChange={(e) => setParam('creator', e.target.value)} aria-label="Filtra per creator">
           <option value="">Tutti i creator</option>
-          {channelOptions.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+          {sortedProfiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
-        <select className={source && source !== SINGLE ? 'discreet-text' : undefined} value={source} onChange={(e) => setSource(e.target.value)} aria-label="Filtra per sorgente">
-          <option value="">Tutte le sorgenti</option>
+        <select className={source && source !== SINGLE ? 'discreet-text' : undefined} value={source} onChange={(e) => setParam('fonte', e.target.value)} aria-label="Filtra per fonte">
+          <option value="">Tutte le fonti</option>
           {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          <option value={SINGLE}>Singoli (senza sorgente)</option>
+          <option value={SINGLE}>Singoli (senza fonte)</option>
         </select>
       </div>
+
+      {view.value === 'spariti' && removedStats.total > 0 && (
+        <div className="banner">
+          <Archive size={18} />
+          <div className="banner-text">
+            <b>{removedStats.total} video non sono più su YouTube</b>
+            <span>
+              {removedStats.saved === 0
+                ? 'Nessuno era stato scaricato: di questi resta solo la scheda con i metadati.'
+                : `${removedStats.saved === 1 ? 'Uno l\'hai salvato' : `${removedStats.saved} li hai salvati`} in tempo.`}
+              {removedStats.saved > 0 && removedStats.lost > 0 && ` ${removedStats.lost} non erano stati scaricati e sono persi: resta solo la scheda con i metadati.`}
+            </span>
+          </div>
+          {removedStats.saved > 0 && removedStats.lost > 0 && (
+            <button className="btn" onClick={() => setParam('persi', lostOnly ? null : '1')}>
+              {lostOnly ? 'Mostra tutti' : 'Mostra solo i persi'}
+            </button>
+          )}
+        </div>
+      )}
+
       {videos === null ? (
         <div className="empty-state"><span className="spinner"></span></div>
       ) : filtered.length === 0 ? (
-        <div className="empty-state">Nessun video con questi filtri.</div>
+        <div className="empty-state">Nessun video in questa vista.</div>
       ) : (
-        <div className="grid">
+        <div className={layout === 'row' ? 'row-list' : 'grid'}>
           {filtered.map((v) => (
-            <VideoCard key={v.id} video={v} onDecide={handleAction} />
+            <VideoCard
+              key={v.id}
+              video={v}
+              layout={layout}
+              onDecide={handleAction}
+              selectMode={selectMode}
+              selected={selected.has(v.id)}
+              onToggleSelect={toggleSelect}
+            />
           ))}
+        </div>
+      )}
+
+      {selectMode && (
+        <div className="bulk-bar" role="toolbar" aria-label="Azioni sui selezionati">
+          <span className="bulk-count">{selected.size} selezionat{selected.size === 1 ? 'o' : 'i'}</span>
+          <button className="btn small" onClick={allSelected ? () => setSelected(new Set()) : selectAll}>
+            <CheckCheck size={14} />{allSelected ? 'Deseleziona tutti' : `Seleziona tutti (${filtered.length})`}
+          </button>
+          <span className="bulk-sep" />
+          {/* Lo scaricamento di gruppo solo in "Da scaricare": lì la selezione
+              contiene per definizione solo video da scaricare. */}
+          {view.value === 'da-scaricare' && (
+            <button className="btn small btn-primary" disabled={busy || downloadable.length === 0} onClick={bulkDownload}>
+              <CloudDownload size={14} />Scarica{downloadable.length ? ` ${downloadable.length}` : ''}
+            </button>
+          )}
+          <button className="btn small" disabled={busy || selected.size === 0} onClick={bulkMetadata}>
+            <FileDown size={14} />Aggiorna metadati
+          </button>
+          <button className="btn small" disabled={busy || queueable.length === 0} onClick={bulkQueue} title="Solo i video scaricati">
+            <ListPlus size={14} />Aggiungi alla coda
+          </button>
+          {view.value === 'nascosti' ? (
+            <button className="btn small" disabled={busy || selected.size === 0} onClick={() => bulkHide(false)}>
+              <Eye size={14} />Mostra di nuovo
+            </button>
+          ) : (
+            <button className="btn small" disabled={busy || selected.size === 0} onClick={() => bulkHide(true)}>
+              <EyeOff size={14} />Nascondi
+            </button>
+          )}
+          <button className="bulk-close" onClick={exitSelect} aria-label="Chiudi selezione" title="Chiudi (Esc)"><X size={16} /></button>
         </div>
       )}
       {modal}

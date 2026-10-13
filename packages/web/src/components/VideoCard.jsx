@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreVertical, Download, Archive, ArchiveRestore, User, FileDown, Star, StarOff, Trash2, ListPlus, ListMinus } from 'lucide-react';
-import { StatusBadge } from './StatusBadge.jsx';
+import { MoreVertical, Download, CloudDownload, RotateCw, EyeOff, Eye, User, FileDown, Star, StarOff, Trash2, ListPlus, ListMinus, AlertTriangle, Ban, Lock, Check } from 'lucide-react';
+import { coverState, leftAllSources } from '../lib/libraryFilters.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial } from '../lib/format.js';
 import { actionsFor } from '../lib/reviewActions.js';
 import { confirmDialog } from '../lib/dialog.js';
@@ -11,19 +11,25 @@ import { addToQueue, removeFromQueue, useQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
 
 // Voci del menu ⋮ per tipo di azione (kind da actionsFor). Etichette/icone in
-// stile YouTube; "hide"→Archivia, "unhide"→Ripristina (contestuale allo stato).
+// stile YouTube; "hide"→Nascondi, "unhide"→Mostra di nuovo. Nascondere non è
+// distruttivo: niente più rosso (redesign R1).
 const MENU = {
   download: { label: 'Scarica video', Icon: Download },
-  hide: { label: 'Archivia', Icon: Archive },
-  unhide: { label: 'Ripristina', Icon: ArchiveRestore }
+  hide: { label: 'Nascondi', Icon: EyeOff },
+  unhide: { label: 'Mostra di nuovo', Icon: Eye }
 };
+
+// Pillola di stato sulla copertina (card v2): icona per tipo.
+const PILL_ICON = { available: CloudDownload, downloading: Download, failed: AlertTriangle, saved: AlertTriangle, lost: Ban, restricted: Lock };
 
 // `layout`: 'grid' (default, invariato) per Home/Archiviati/creator; 'row' per
 // la card orizzontale (M53) usata in Cerca e "Video suggeriti" — stesso
 // componente, stessa logica di stato/menu ⋮, solo la struttura JSX cambia,
 // così le due varianti non possono divergere (è la divergenza ad aver causato
 // il bug delle card profilo).
-export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 'grid' }) {
+// selectMode: la card si seleziona al click invece di aprire il video;
+// onToggleSelect(id, event) riceve l'evento per lo Shift+click a intervalli.
+export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMode = false, layout = 'grid' }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
   const kebabRef = useRef(null);
@@ -32,11 +38,6 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
   const date = videoDisplayDate(video);
   const actions = actionsFor(video);
   const downloading = video.download === 'downloading';
-  // Non ancora in libreria: copertina blur+B/N (sulla sola immagine, mai su
-  // bordo/overlay). Esclude "downloading", che ha già il proprio trattamento
-  // dedicato qui sotto (blur più forte + anello di progresso) — sommare
-  // anche questo li farebbe scontrare.
-  const notDownloaded = video.download !== 'downloaded' && !downloading;
   // jobId noto solo se il download è stato avviato da questa stessa sessione
   // (vedi lib/downloadTracker.js): se assente (pagina ricaricata a metà
   // download, o avviato altrove) niente percentuale reale, il cerchio ricade
@@ -100,43 +101,78 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
     onDecide(video.id, kind);
   }
 
+  const pill = coverState(video, { progress });
+  const PillIcon = pill ? PILL_ICON[pill.kind] : null;
+  // Azione principale sulla copertina (card v2): niente più "apri il menu ⋮
+  // per scaricare". Non sui persi (non c'è più niente da scaricare) né sui
+  // nascosti, né mentre si seleziona.
+  const coverAction = selectMode || video.hidden || downloading ? null
+    : video.download === 'failed' ? { label: 'Riprova', Icon: RotateCw, cls: 'retry' }
+    : video.download === 'none' && video.presence === 'present' ? { label: 'Scarica', Icon: CloudDownload, cls: '' }
+    : null;
+  const thumbCls = `thumb${layout === 'row' ? ' thumb-row' : ''}${downloading ? ' downloading' : ''}${pill?.kind === 'lost' ? ' lost' : ''}`;
+
+  function handleSelectClick(e) {
+    if (!selectMode) return;
+    e.preventDefault();
+    onToggleSelect?.(video.id, e);
+  }
+
   // Contenuto della copertina: identico in grid e row, cambia solo la classe
   // che ne fissa la dimensione (thumb-row vs il default a piena colonna).
   const thumbInner = (
     <>
       {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" /> : null}
-      {downloading && (
-        <div className="dl-overlay">
-          <svg className="dl-ring" viewBox="0 0 36 36">
-            <circle className="dl-ring-track" cx="18" cy="18" r="15.9155" />
-            <circle
-              className={`dl-ring-fill${progress == null ? ' indeterminate' : ''}`}
-              cx="18" cy="18" r="15.9155"
-              style={progress != null ? { strokeDashoffset: 100 - progress } : undefined}
-            />
-          </svg>
-          <Download size={16} className="dl-icon" />
-        </div>
+      {(selectMode || selected) && (
+        <span className={`card-check${selected ? ' on' : ''}`} aria-hidden="true">{selected && <Check size={13} strokeWidth={3} />}</span>
       )}
-      {onToggleSelect && (
-        <input
-          type="checkbox"
-          className="card-select"
-          checked={!!selected}
-          title="Seleziona"
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => { e.stopPropagation(); onToggleSelect(video.id); }}
-        />
+      {pill && (
+        <span className={`cover-pill ${pill.kind}${selectMode || selected ? ' shifted' : ''}`}>
+          <PillIcon size={12} />{pill.label}
+        </span>
       )}
-      <StatusBadge video={video} />
       {video.favorite && (
         <div className="fav-star" title="Preferito">
           <Star size={16} fill="currentColor" />
         </div>
       )}
+      {downloading && (
+        <div className={`cover-progress${progress == null ? ' indeterminate' : ''}`}>
+          <div style={progress != null ? { width: `${progress}%` } : undefined}></div>
+        </div>
+      )}
       {dur && <div className="dur">{dur}</div>}
     </>
   );
+
+  const thumb = (
+    <div className="thumb-wrap">
+      <Link to={`/videos/${video.id}`} className={thumbCls} onClick={handleSelectClick}>
+        {thumbInner}
+      </Link>
+      {coverAction && (
+        <button
+          type="button"
+          className={`cover-action ${coverAction.cls}`}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); act('download'); }}
+        >
+          <coverAction.Icon size={13} />{coverAction.label}
+        </button>
+      )}
+      {onToggleSelect && !selectMode && !selected && (
+        <button
+          type="button"
+          className="card-check hover-only"
+          title="Seleziona il video"
+          aria-label="Seleziona il video"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(video.id, e); }}
+        />
+      )}
+    </div>
+  );
+
+  // Il video non è più in nessuna fonte (le playlist non lo elencano più).
+  const leftNote = leftAllSources(video) && video.download !== 'downloaded' ? ' · fuori dalle fonti' : '';
 
   // Menu ⋮: unico in tutta l'app, condiviso da grid e row — è proprio questa
   // condivisione a garantire che le azioni disponibili non divergano mai tra
@@ -188,13 +224,10 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
                 <User size={15} />Mostra profilo
               </Link>
             )}
-            {/* Archivia/Ripristina: in fondo al menu, sempre rosso solo per "Archivia" */}
+            {/* Nascondi/Mostra di nuovo: in fondo al menu */}
             {archiveAction && (
-              <button
-                className={`menu-item${archiveAction.kind === 'hide' ? ' danger' : ''}`}
-                onClick={() => act(archiveAction.kind)}
-              >
-                {archiveAction.kind === 'hide' ? <Archive size={15} /> : <ArchiveRestore size={15} />}
+              <button className="menu-item" onClick={() => act(archiveAction.kind)}>
+                {archiveAction.kind === 'hide' ? <EyeOff size={15} /> : <Eye size={15} />}
                 {MENU[archiveAction.kind].label}
               </button>
             )}
@@ -218,15 +251,13 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
     // CSS (.thumb-row), qui la struttura è unica per entrambi i contesti.
     return (
       <div className={`card-row${video.hidden ? ' dimmed' : ''}${selected ? ' selected' : ''}`}>
-        <Link to={`/videos/${video.id}`} className={`thumb thumb-row${downloading ? ' downloading' : ''}${notDownloaded ? ' not-downloaded' : ''}`}>
-          {thumbInner}
-        </Link>
+        {thumb}
         <div className="row-body">
-          <Link to={`/videos/${video.id}`} className="row-title discreet-text">
+          <Link to={`/videos/${video.id}`} className="row-title discreet-text" onClick={handleSelectClick}>
             {video.title ?? video.id}
           </Link>
           <div className="row-meta discreet-text">
-            {video.channel?.name ?? 'Creator sconosciuto'}{date ? ` · ${date}` : ''}
+            {video.channel?.name ?? 'Creator sconosciuto'}{date ? ` · ${date}` : ''}{leftNote}
           </div>
         </div>
         {menu}
@@ -235,11 +266,9 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
   }
 
   return (
-    <div className={`card${video.hidden ? ' dimmed' : ''}${selected ? ' selected' : ''}`}>
-      <Link to={`/videos/${video.id}`} className={`thumb${downloading ? ' downloading' : ''}${notDownloaded ? ' not-downloaded' : ''}`}>
-        {thumbInner}
-      </Link>
-      <Link to={`/videos/${video.id}`} className="card-title discreet-text">
+    <div className={`card${video.hidden ? ' dimmed' : ''}${selected ? ' selected' : ''}${pill?.kind === 'lost' ? ' lost' : ''}`}>
+      {thumb}
+      <Link to={`/videos/${video.id}`} className="card-title discreet-text" onClick={handleSelectClick}>
         {video.title ?? video.id}
       </Link>
       <div className="card-info">
@@ -254,7 +283,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, layout = 
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="card-meta discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
-          {date && <div className="card-meta">{date}</div>}
+          {(date || leftNote) && <div className="card-meta">{date}{leftNote}</div>}
         </div>
 
         {menu}

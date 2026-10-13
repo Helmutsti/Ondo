@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Archive, ArchiveRestore, Minimize2, Maximize2, PictureInPicture2, Gauge, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
+import { Download, Eye, EyeOff, Minimize2, Maximize2, PictureInPicture2, Gauge, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
 import { getVideo, listVideos, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
+import { BackLink } from '../components/BackLink.jsx';
 import { actionsFor } from '../lib/reviewActions.js';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { startDownload } from '../lib/downloadActions.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial, formatBytes, formatBitrate } from '../lib/format.js';
-import { confirmDialog } from '../lib/dialog.js';
 import { showToast, updateToast } from '../lib/toast.js';
 import { useQueue, removeFromQueue, clearQueue } from '../lib/queueStore.js';
 import { usePlayer, setCurrent, getVideoEl, useMiniPlayerEnabled, setMinimized, useAutoplayOnOpen } from '../lib/playerStore.js';
@@ -252,20 +252,10 @@ export function VideoDetailPage() {
     }
   }
 
-  // Archivia dalla pagina video: volutamente defilato e con conferma (per gli
-  // scaricati la conferma è il modale "Vuoi tenere il video?"; per gli altri un
-  // confirm), così non è un click accidentale.
-  async function handleArchive() {
-    if (video.download === 'downloaded') { requestHide(video); return; }
-    const ok = await confirmDialog({
-      title: 'Archiviare il video?',
-      message: `Archiviare "${video.title ?? video.id}"? Andrà tra gli Archiviati (puoi ripristinarlo).`,
-      confirmLabel: 'Archivia',
-      danger: true
-    });
-    if (ok) {
-      setHidden(id, true).then(reload).catch((e) => setError(e.message));
-    }
+  // Nascondi: stesso comportamento della card (non è distruttivo, niente
+  // conferma); per gli scaricati chiede se tenere il file.
+  function handleArchive() {
+    requestHide(video);
   }
 
   // Preferito (M43 era limitato al menu ⋮ di VideoCard): estensione al
@@ -284,7 +274,7 @@ export function VideoDetailPage() {
   if (error) {
     return (
       <>
-        <Link to="/" className="back-link desktop-only"><ArrowLeft size={14} />Home</Link>
+        <BackLink />
         <div className="notice error" style={{ marginTop: 16 }}>{error}</div>
       </>
     );
@@ -326,7 +316,7 @@ export function VideoDetailPage() {
 
   return (
     <>
-      <Link to="/" className="back-link desktop-only"><ArrowLeft size={14} />Home</Link>
+      <BackLink />
       <div className="detail-body" style={{ marginTop: 16 }}>
         <div className="player-col">
           <div className="player-frame">
@@ -511,7 +501,7 @@ export function VideoDetailPage() {
                 <span className="tech-val">{DOWNLOAD_LABEL[video.download] ?? video.download}</span>
               </div>
               <div>
-                <span className="tech-key">Archiviato</span>
+                <span className="tech-key">Nascosto</span>
                 <span className="tech-val">{video.hidden ? 'Sì' : 'No'}</span>
               </div>
               <div>
@@ -541,13 +531,13 @@ export function VideoDetailPage() {
                 <FileDown size={14} />Scarica metadati
               </button>
               {hideAction?.kind === 'hide' && (
-                <button className="btn btn-brick" onClick={handleArchive}>
-                  <Archive size={14} />Archivia
+                <button className="btn" onClick={handleArchive}>
+                  <EyeOff size={14} />Nascondi
                 </button>
               )}
               {hideAction?.kind === 'unhide' && (
                 <button className="btn" onClick={() => handleAction('unhide', 'Ripristinato')}>
-                  <ArchiveRestore size={14} />Ripristina
+                  <Eye size={14} />Mostra di nuovo
                 </button>
               )}
             </div>
