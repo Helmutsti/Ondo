@@ -1,4 +1,4 @@
-import { registerJobHandler, triggerJob, getJob, listJobs, listActivity, deleteJob, cancelJob, clearJobs, onJobLog, onJobStatus, onJobProgress, getPoolStatus, getJobParallelism, setJobParallelism, nudgeJobPool } from './jobs/jobManager.js';
+import { registerJobHandler, triggerJob, getJob, listJobs, listActivity, deleteJob, cancelJob, clearJobs, onJobLog, onJobStatus, onJobProgress, getPoolStatus, getJobParallelism, setJobParallelism, getMetadataParallelism, setMetadataParallelism, nudgeJobPool } from './jobs/jobManager.js';
 import { downloadPendingJob } from './jobs/jobs/downloadPending.js';
 import { downloadSingleJob } from './jobs/jobs/downloadSingle.js';
 import { enrichSourceJob } from './jobs/jobs/enrichSource.js';
@@ -15,6 +15,8 @@ import { videoCategory, VIDEO_CATEGORY, PRESENCE, DOWNLOAD_STATE } from './catal
 import { syncSource } from './services/syncService.js';
 import { listSources, addSource, removeSource, setSourceRules } from './services/sourceService.js';
 import { startSourceScheduler } from './services/sourceScheduler.js';
+import { ignoreVideo, listIgnored, unignoreVideo } from './services/ignoreService.js';
+import { getBlock } from './services/blockState.js';
 import { CHECK_INTERVALS } from './services/sourceRules.js';
 import { setVideoHidden, setVideoFavorite } from './services/decisionService.js';
 import { prepareSingleVideoDownload, analyzeVideoDownload } from './services/singleVideoService.js';
@@ -115,6 +117,10 @@ export {
   listSources,
   // regole per fonte (controllo automatico, scaricamento automatico, qualità)
   setSourceRules,
+  // «Ignora per sempre»: fuori dalla libreria, e la sync non lo reinserisce
+  ignoreVideo,
+  listIgnored,
+  unignoreVideo,
   // wizard dei metadati: revisioni, modifiche a mano, blocchi, cronologia
   listPendingReviews,
   resolveReview,
@@ -147,6 +153,9 @@ export {
   // Un'interfaccia rilegge da qui invece di tenersi il conto: un evento si
   // consuma una volta sola, una fotografia si può richiedere ogni volta.
   getPoolStatus,
+  getMetadataParallelism,
+  setMetadataParallelism,
+  getBlock,
   getJobParallelism,
   setJobParallelism,
   // M86 — da chiamare dopo aver **alzato** jobs.parallel: senza, i job già in

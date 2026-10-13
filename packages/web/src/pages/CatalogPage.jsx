@@ -205,7 +205,8 @@ export function CatalogPage() {
         reload();
         return;
       }
-      await setHidden(id, false); // unhide
+      // 'refresh' (es. dopo «Ignora per sempre») ricarica soltanto.
+      if (kind === 'unhide') await setHidden(id, false);
       reload();
     } catch (e) {
       setError(e.message);

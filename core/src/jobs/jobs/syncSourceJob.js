@@ -5,6 +5,7 @@ import { recordSourceCheck, queueDownloads } from '../../services/sourceService.
 import { rulesOf } from '../../services/sourceRules.js';
 import { classifyYtdlpError, errorRecord } from '../../ytdlp/errorClassifier.js';
 import { enrichSourceJob } from './enrichSource.js';
+import { noteUnblocked } from '../../services/blockState.js';
 
 // Controllo di UNA fonte (redesign R3): lo lancia "Sincronizza" e lo lancia lo
 // scheduler quando la fonte è scaduta. In ordine:
@@ -36,6 +37,8 @@ export async function syncSourceJob({ sourceId, auto = false }, ctx) {
     throw wrapped;
   }
 
+  // L'elenco è arrivato: YouTube risponde di nuovo, niente più attesa crescente.
+  noteUnblocked();
   const parts = [`${r.newCount} nuovi`];
   if (r.leftCount) parts.push(`${r.leftCount} usciti dalla playlist`);
   if (r.rejoinedCount) parts.push(`${r.rejoinedCount} rientrati`);

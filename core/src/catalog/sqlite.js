@@ -50,7 +50,8 @@ export const COLLECTIONS = [
   { field: 'channelAvatars', table: 'channel_avatars', key: 'key' },
   { field: 'profiles', table: 'profiles', key: 'id' }
 ];
-export const KV_FIELDS = ['version', 'queue', 'meta'];
+// ignored: i video «ignorati per sempre», che la sync non reinserisce più.
+export const KV_FIELDS = ['version', 'queue', 'meta', 'ignored'];
 
 // `node:sqlite` è integrato in Node (22.13+), quindi niente moduli nativi da
 // compilare — conta per l'immagine Docker, che costruisce node_modules su amd64
@@ -116,7 +117,7 @@ export function inTransaction(db, fn) {
 
 /** Il catalogo completo, nella stessa forma dell'oggetto che era libreria.json. */
 export function readCatalogFrom(db) {
-  const catalog = { version: 1, videos: {}, sources: {}, channelAvatars: {}, profiles: {}, queue: [], meta: {} };
+  const catalog = { version: 1, videos: {}, sources: {}, channelAvatars: {}, profiles: {}, queue: [], ignored: [], meta: {} };
   for (const { field, table, key } of COLLECTIONS) {
     for (const row of db.prepare(`SELECT ${key} AS k, data FROM ${table}`).all()) {
       catalog[field][row.k] = JSON.parse(row.data);
@@ -146,6 +147,7 @@ function writeEverything(db, catalog, metadata) {
   kv.run('version', JSON.stringify(catalog.version ?? 1));
   kv.run('queue', JSON.stringify(Array.isArray(catalog.queue) ? catalog.queue : []));
   kv.run('meta', JSON.stringify(catalog.meta ?? { lastUpdated: new Date().toISOString() }));
+  kv.run('ignored', JSON.stringify(Array.isArray(catalog.ignored) ? catalog.ignored : []));
   const insertMeta = db.prepare('INSERT OR REPLACE INTO metadata (id, data) VALUES (?, ?)');
   for (const [id, info] of Object.entries(metadata ?? {})) insertMeta.run(id, JSON.stringify(info));
 }

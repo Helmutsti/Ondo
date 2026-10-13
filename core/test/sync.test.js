@@ -73,3 +73,12 @@ test('validazione: elenco normale, calo forte, calo confermato, avvisi', () => {
   assert.deepEqual(assessEnumeration({ count: 156, lastGoodCount: 156, warnings: ['WARNING: [youtube:tab] Incomplete data received. Retrying (1/3)...'] }), { ok: false, reason: 'warnings' });
   assert.deepEqual(assessEnumeration({ count: 3, lastGoodCount: null }), { ok: true, reason: null });
 });
+
+test('i video ignorati per sempre non rientrano con la sync', () => {
+  const cat = { videos: {}, ignored: [{ id: 'z' }] };
+  const r = ingestPlaylistEntries(cat, source, [entry('z'), entry('n')], paths);
+  assert.equal(cat.videos.z, undefined);
+  assert.ok(cat.videos.n);
+  assert.equal(r.ignoredCount, 1);
+  assert.deepEqual(r.newIds, ['n']);
+});

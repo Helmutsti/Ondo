@@ -2,7 +2,9 @@ import express, { Router } from 'express';
 import {
   loadLibraryConfig, getPaths, setVideosRoot, getCookiesStatus, saveCookiesFile, deleteCookiesFile,
   getQuality, setQuality, qualityLabel, sameQuality, QUALITY_LEVELS,
-  getJobParallelism, setJobParallelism
+  getJobParallelism,
+  getMetadataParallelism,
+  setMetadataParallelism, setJobParallelism
 } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
 
@@ -34,7 +36,8 @@ configRouter.get(
         label: qualityLabel(q),
         current: sameQuality(q, quality)
       })),
-      parallel: getJobParallelism()
+      parallel: getJobParallelism(),
+      metadataParallel: getMetadataParallelism()
     });
   })
 );
@@ -85,5 +88,14 @@ configRouter.post(
   asyncRoute(async (req, res) => {
     // M96 — un solo punto di scrittura nel core (scrive e fa il nudge).
     res.json({ parallel: setJobParallelism(req.body?.parallel) });
+  })
+);
+
+// Quanti lavori "leggeri" (controlli delle fonti, metadati) girano insieme,
+// separati dai download: è anche quanti video il wizard elabora alla volta.
+configRouter.post(
+  '/config/metadata-parallel',
+  asyncRoute(async (req, res) => {
+    res.json({ metadataParallel: setMetadataParallelism(req.body?.metadataParallel) });
   })
 );

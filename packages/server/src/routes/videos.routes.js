@@ -8,6 +8,9 @@ import {
   setVideoFavorite,
   deleteVideoFile,
   deleteVideoCompletely,
+  ignoreVideo,
+  listIgnored,
+  unignoreVideo,
   searchVideos,
   getRawMetadata,
   refreshVideoMetadata,
@@ -141,4 +144,18 @@ videosRouter.delete('/videos/:id/file', asyncRoute(async (req, res) => {
 videosRouter.delete('/videos/:id', asyncRoute(async (req, res) => {
   await deleteVideoCompletely(req.params.id);
   res.json({ ok: true, id: req.params.id });
+}));
+
+// «Ignora per sempre»: fuori dalla libreria (con i file, di default) e la sync
+// non lo reinserisce più. Si annulla da Impostazioni › Video ignorati.
+videosRouter.post('/videos/:id/ignore', asyncRoute(async (req, res) => {
+  res.json(await ignoreVideo(req.params.id, { deleteFiles: req.body?.deleteFiles !== false }));
+}));
+
+videosRouter.get('/ignored', asyncRoute(async (req, res) => {
+  res.json(await listIgnored());
+}));
+
+videosRouter.delete('/ignored/:id', asyncRoute(async (req, res) => {
+  res.json(await unignoreVideo(req.params.id));
 }));

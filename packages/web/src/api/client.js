@@ -25,6 +25,13 @@ function qs(params = {}) {
 }
 
 export const listVideos = () => request('/api/videos');
+// «Ignora per sempre»: fuori dalla libreria (con i file) e la sync non lo reinserisce.
+export const ignoreVideo = (id, deleteFiles = true) =>
+  request(`/api/videos/${encodeURIComponent(id)}/ignore`, { method: 'POST', body: JSON.stringify({ deleteFiles }) });
+export const listIgnored = () => request('/api/ignored');
+export const unignoreVideo = (id) => request(`/api/ignored/${encodeURIComponent(id)}`, { method: 'DELETE' });
+export const setMetadataParallel = (metadataParallel) =>
+  request('/api/config/metadata-parallel', { method: 'POST', body: JSON.stringify({ metadataParallel }) });
 export const getVideo = (id) => request(`/api/videos/${encodeURIComponent(id)}`);
 // Nasconde/mostra un video (asse `hidden` del modello a flag, M25).
 export const setHidden = (id, hidden) =>

@@ -56,6 +56,8 @@ export function ActivityRow({ job, compact = false }) {
   let sub = JOB_LABEL[job.type] ?? job.type;
   if (job.params?.auto) sub += ' automatico';
   if (queued) sub += job.queuePosition ? ` · in coda (${job.queuePosition}°)` : ' · in coda';
+  else if (running && job.note?.pausedUntil) sub += ` · in pausa, riprende alle ${new Date(job.note.pausedUntil).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+  else if (running && job.note?.counts) sub += ` · ${job.note.counts.done} di ${job.note.counts.total}${job.note.counts.review ? ` · ${job.note.counts.review} da rivedere` : ''}`;
   else if (running) sub += job.note?.phase === 'enriching' ? ' · verifica e metadati' : (job.lastLine ? ` · ${job.lastLine}` : '');
   else if (failed) sub += ` · ${job.error?.hint ?? job.error?.message ?? 'errore sconosciuto'}`;
   else if (outcome(job)) sub += ` · ${outcome(job)}`;

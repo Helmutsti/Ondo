@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TriangleAlert, Trash2, WandSparkles } from 'lucide-react';
 import { openMetadataWizard, useMetadataWizard } from '../lib/metadataWizard.js';
-import { clearJobs, getConfig, setParallel, listMetadataReviews } from '../api/client.js';
+import { clearJobs, getConfig, setParallel, setMetadataParallel, listMetadataReviews } from '../api/client.js';
 import { ActivityRow } from '../components/ActivityRow.jsx';
 import { useActivity, refreshActivity, recentBlock } from '../lib/activityStore.js';
 import { useTitle } from '../hooks/useTitle.js';
@@ -18,6 +18,7 @@ export function ActivityPage() {
   useTitle('Attività');
   const data = useActivity();
   const [parallel, setParallelState] = useState(null);
+  const [metaParallel, setMetaParallel] = useState(null);
   const [parallelOptions, setParallelOptions] = useState([1, 2, 3, 4, 5, 6]);
   const [reviews, setReviews] = useState([]);
   const wizardOpen = !!useMetadataWizard();
@@ -41,6 +42,7 @@ export function ActivityPage() {
   useEffect(() => {
     getConfig().then((c) => {
       setParallelState(c.parallel ?? data?.pool?.parallel ?? 1);
+      setMetaParallel(c.metadataParallel ?? 2);
       if (Array.isArray(c.parallelLevels)) setParallelOptions(c.parallelLevels.map((l) => l.value ?? l));
     }).catch(() => {});
   }, []);
@@ -63,6 +65,17 @@ export function ActivityPage() {
     try {
       await setParallel(n);
       setParallelState(n);
+      refreshActivity();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function changeMetaParallel(e) {
+    const n = Number(e.target.value);
+    try {
+      await setMetadataParallel(n);
+      setMetaParallel(n);
       refreshActivity();
     } catch (err) {
       showToast(err.message, 'error');
@@ -95,8 +108,13 @@ export function ActivityPage() {
         <h1>Attività</h1>
         <div className="page-actions">
           {parallel != null && (
-            <select value={parallel} onChange={changeParallel} aria-label="Lavori in parallelo">
-              {[...new Set([...parallelOptions, parallel])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>In parallelo: {n}</option>)}
+            <select value={parallel} onChange={changeParallel} aria-label="Download in parallelo">
+              {[...new Set([...parallelOptions, parallel])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>Download in parallelo: {n}</option>)}
+            </select>
+          )}
+          {metaParallel != null && (
+            <select value={metaParallel} onChange={changeMetaParallel} aria-label="Metadati in parallelo">
+              {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>Metadati in parallelo: {n}</option>)}
             </select>
           )}
           <button className="btn" onClick={clearFinished}><Trash2 size={14} />Svuota storico</button>
@@ -108,7 +126,12 @@ export function ActivityPage() {
           <TriangleAlert size={18} />
           <div>
             <b>YouTube sta bloccando le richieste</b>
-            <span>{block.error?.hint} I controlli e i metadati si sono fermati da soli invece di riempire la libreria di errori; riprovano al prossimo controllo.</span>
+            <span>
+              {block.error?.hint}{' '}
+              {block.until
+                ? `Controlli e metadati in pausa: riprovo alle ${new Date(block.until).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })} (attesa crescente), oppure carica cookie aggiornati per ripartire prima. I download non sono coinvolti.`
+                : 'I controlli e i metadati si sono fermati da soli invece di riempire la libreria di errori; riprovano al prossimo controllo.'}
+            </span>
           </div>
           <Link to="/settings" className="btn small">Carica cookie</Link>
         </div>

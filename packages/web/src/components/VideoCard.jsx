@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreVertical, Download, CloudDownload, RotateCw, EyeOff, Eye, User, FileDown, Star, StarOff, Trash2, ListPlus, ListMinus, AlertTriangle, Ban, Lock, Check } from 'lucide-react';
+import { MoreVertical, Download, CloudDownload, RotateCw, EyeOff, Eye, User, FileDown, Star, StarOff, Trash2, ListPlus, ListMinus, AlertTriangle, Ban, Lock, Check, CircleSlash } from 'lucide-react';
 import { coverState, leftAllSources } from '../lib/libraryFilters.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial } from '../lib/format.js';
 import { actionsFor } from '../lib/reviewActions.js';
@@ -8,6 +8,7 @@ import { confirmDialog } from '../lib/dialog.js';
 import { useActiveDownloadJobId } from '../lib/downloadTracker.js';
 import { useVideoActivity } from '../lib/activityStore.js';
 import { openMetadataWizard } from '../lib/metadataWizard.js';
+import { ignoreWithConfirm } from '../lib/ignoreAction.js';
 import { useJobStream } from '../hooks/useJobStream.js';
 import { addToQueue, removeFromQueue, useQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
@@ -91,6 +92,10 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
     if (kind === 'queue') {
       addToQueue(video);
       showToast('Aggiunto alla coda.', 'success', 2000);
+      return;
+    }
+    if (kind === 'ignore') {
+      if (await ignoreWithConfirm(video)) onDecide(video.id, 'refresh');
       return;
     }
     if (kind === 'metadata') {
@@ -246,6 +251,9 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
                 {MENU[archiveAction.kind].label}
               </button>
             )}
+            <button className="menu-item danger" onClick={() => act('ignore')}>
+              <CircleSlash size={15} />Ignora per sempre…
+            </button>
             {/* Cancella definitivamente (punto 11): solo sui video già
                 archiviati — gate a due passi, applicato anche lato core. */}
             {video.hidden && (

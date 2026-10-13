@@ -90,6 +90,8 @@ export async function prepareSingleVideoDownload(input, { download = true } = {}
     // Mai legato a una fonte (sources: [] già di default senza sourceId): nessuna
     // sync di playlist enumererà mai questo id.
     cat.videos[info.id] = stub;
+    // Incollarlo di proposito vale come «non ignorarlo più».
+    if (Array.isArray(cat.ignored)) cat.ignored = cat.ignored.filter((x) => x.id !== info.id);
   });
 
   return { videoId: info.id, action: download ? 'download' : 'added', title: info.title, alreadyDownloaded: false, ...analysis };

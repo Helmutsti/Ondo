@@ -60,6 +60,9 @@ export function createEmptyCatalog() {
     // motivo, invece di sparire senza lasciare traccia.
     // Forma: [{ url, addedAt, attempts, error, maxHeight }]
     queue: [],
+    // Video «ignorati per sempre»: [{ id, title, channelName, at }]. La sync
+    // non li reinserisce più (vedi syncService.ingestPlaylistEntries).
+    ignored: [],
     meta: { lastUpdated: new Date().toISOString() }
   };
 }

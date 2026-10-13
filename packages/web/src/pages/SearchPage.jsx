@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { searchVideos, setHidden, setFavorite, deleteVideo, refreshMetadata, triggerJob } from '../api/client.js';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Rss } from 'lucide-react';
+import { searchVideos, setHidden, setFavorite, deleteVideo, refreshMetadata, triggerJob, listProfiles, listSources } from '../api/client.js';
+import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
@@ -12,6 +14,19 @@ export function SearchPage() {
   const q = params.get('q') ?? '';
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [profiles, setProfiles] = useState([]);
+  const [sources, setSources] = useState([]);
+  useEffect(() => {
+    listProfiles().then(setProfiles).catch(() => {});
+    listSources().then(setSources).catch(() => {});
+  }, []);
+
+  // Anche creator (per nome del profilo o di uno dei suoi canali) e fonti:
+  // la barra in alto cerca "video, creator, fonti".
+  const norm = (x) => (x ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const nq = norm(q.trim());
+  const creatorHits = useMemo(() => (nq ? profiles.filter((p) => norm(p.name).includes(nq) || p.channels.some((c) => norm(c.name).includes(nq))).slice(0, 8) : []), [profiles, nq]);
+  const sourceHits = useMemo(() => (nq ? sources.filter((src) => norm(src.name).includes(nq)).slice(0, 6) : []), [sources, nq]);
 
   useTitle(q.trim() ? `Cerca: ${q.trim()}` : 'Cerca');
 
@@ -65,7 +80,7 @@ export function SearchPage() {
         await reSearch();
         return;
       }
-      await setHidden(id, false); // unhide
+      if (kind === 'unhide') await setHidden(id, false);
       await reSearch();
     } catch (e) {
       setError(e.message);
@@ -80,14 +95,49 @@ export function SearchPage() {
         <div className="empty-state">Scrivi qualcosa per cercare nel catalogo.</div>
       ) : results === null ? (
         <div className="empty-state"><span className="spinner"></span></div>
-      ) : results.length === 0 ? (
+      ) : results.length === 0 && !creatorHits.length && !sourceHits.length ? (
         <div className="empty-state">Nessun risultato per "{q}".</div>
       ) : (
+        <>
+        {(creatorHits.length > 0 || sourceHits.length > 0) && (
+          <div className="search-hits">
+            {creatorHits.length > 0 && (
+              <>
+                <div className="section-label">Creator</div>
+                <div className="search-chips">
+                  {creatorHits.map((p) => (
+                    <Link key={p.id} to={`/creators/${encodeURIComponent(p.id)}`} className="profile-chip">
+                      <ProfileAvatar url={p.avatarUrl} name={p.name} className="avatar" />
+                      <span className="discreet-text">{p.name}</span>
+                      <span className="count">{p.videoCount} video</span>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+            {sourceHits.length > 0 && (
+              <>
+                <div className="section-label" style={{ marginTop: 14 }}>Fonti</div>
+                <div className="search-chips">
+                  {sourceHits.map((src) => (
+                    <Link key={src.id} to="/sources" className="profile-chip">
+                      <Rss size={14} />
+                      <span className="discreet-text">{src.name}</span>
+                      <span className="count">{src.videoCount} video</span>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+            {results.length > 0 && <div className="section-label" style={{ marginTop: 18 }}>Video · {results.length}</div>}
+          </div>
+        )}
         <div className="list">
           {results.map((v) => (
             <VideoCard key={v.id} video={v} layout="row" onDecide={handleAction} />
           ))}
         </div>
+        </>
       )}
       {modal}
     </>

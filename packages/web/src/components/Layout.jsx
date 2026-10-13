@@ -65,7 +65,7 @@ export function Layout() {
         <form className="search-box" onSubmit={submitSearch}>
           <Search size={16} />
           <input
-            placeholder="Cerca video, creator, argomenti"
+            placeholder="Cerca video, creator, fonti…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

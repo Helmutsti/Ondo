@@ -6,6 +6,7 @@ import { getPaths } from '../config.js';
 import { loadAppConfig, updateAppConfig } from '../appConfig.js';
 import { acquireDataLock } from '../lock.js';
 import { classifyYtdlpError } from '../ytdlp/errorClassifier.js';
+import { noteBlocked } from '../services/blockState.js';
 
 const emitter = new EventEmitter();
 const jobs = new Map();
@@ -29,6 +30,13 @@ let loaded = false;
 // di una pipe: N `spawn` concorrenti danno lo stesso parallelismo reale, con
 // l'event loop che smista le righe.
 let inFlight = 0;
+// Due code con tetti separati (redesign R3): i download (pesanti, rete e
+// disco) e tutto il resto — controlli delle fonti, metadati, aggiunte — che
+// sono richieste leggere ma tante. Così un recupero di metadati non aspetta
+// che finiscano dieci download, e viceversa.
+const DOWNLOAD_TYPES = new Set(['downloadSingle', 'downloadPending', 'quickDownload']);
+const poolOf = (job) => (DOWNLOAD_TYPES.has(job.type) ? 'download' : 'metadata');
+const inFlightBy = { download: 0, metadata: 0 };
 
 // Il tetto si rilegge dalla config a ogni giro invece di essere memorizzato,
 // così cambiarlo dalle impostazioni ha effetto **a caldo** senza un canale
@@ -41,6 +49,20 @@ export function getJobParallelism() {
   const configured = loadAppConfig()?.jobs?.parallel;
   const n = Number.parseInt(configured, 10);
   return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+// I lavori "leggeri" in parallelo (controlli delle fonti, metadati): default 2.
+// Lo stesso numero è quanti video il wizard dei metadati elabora insieme.
+export function getMetadataParallelism() {
+  const n = Number.parseInt(loadAppConfig()?.jobs?.metadataParallel, 10);
+  return Number.isFinite(n) && n > 0 ? n : 2;
+}
+
+export function setMetadataParallelism(quanti) {
+  const n = Math.max(1, Math.min(8, Number.parseInt(quanti, 10) || 1));
+  updateAppConfig({ jobs: { metadataParallel: n } });
+  nudgeJobPool();
+  return getMetadataParallelism();
 }
 
 /**
@@ -57,7 +79,14 @@ export function setJobParallelism(quanti) {
 
 /** Quanti job stanno girando adesso, e quanti aspettano un posto libero. */
 export function getPoolStatus() {
-  return { running: inFlight, queued: queue.length, parallel: getJobParallelism() };
+  return {
+    running: inFlight,
+    queued: queue.length,
+    parallel: getJobParallelism(),
+    metadataParallel: getMetadataParallelism(),
+    runningDownloads: inFlightBy.download,
+    runningMetadata: inFlightBy.metadata
+  };
 }
 
 // M86 — «guarda se adesso c'è posto». Il tetto si rilegge a ogni giro di
@@ -137,14 +166,27 @@ function ensureLoaded() {
 function reconcileOrphanJobs() {
   let changed = false;
   const now = new Date().toISOString();
+  const resume = [];
   for (const job of jobs.values()) {
     if (job.status === 'running' || job.status === 'queued') {
       job.status = 'failed';
       job.error = { message: 'Interrotto dal riavvio dell\'applicazione (job orfano).' };
       job.finishedAt = now;
       changed = true;
+      // Un aggiornamento dei metadati riparte da dove era arrivato: ogni
+      // video è indipendente, quelli già fatti sono salvati (checkpoint).
+      if (job.type === 'updateMetadata') {
+        const done = new Set(job.checkpoint?.doneIds ?? []);
+        const left = (job.params?.videoIds ?? []).filter((id) => !done.has(id));
+        if (left.length) {
+          job.error = { message: `Interrotto dal riavvio: ripreso da solo con i ${left.length} video rimasti.` };
+          resume.push({ ...job.params, videoIds: left, resumedFrom: job.id });
+        }
+      }
     }
   }
+  // Dopo il caricamento (gli handler sono registrati all'import del core).
+  if (resume.length) setImmediate(() => { for (const params of resume) triggerJob('updateMetadata', params); });
   return changed;
 }
 
@@ -336,16 +378,26 @@ export function onJobNote(id, callback) {
 // Avvia job finché c'è posto e c'è coda. È l'unico punto che decide di partire:
 // la si richiama quando arriva un job nuovo e quando uno finisce.
 function pump() {
-  while (inFlight < getJobParallelism() && queue.length > 0) {
-    const id = queue.shift();
+  const caps = { download: getJobParallelism(), metadata: getMetadataParallelism() };
+  // Si scorre la coda in ordine e si avvia ogni job la cui coda ha posto:
+  // un download in attesa non blocca un controllo che può partire subito.
+  for (let i = 0; i < queue.length;) {
+    const id = queue[i];
+    const job = jobs.get(id);
+    const pool = job ? poolOf(job) : 'metadata';
+    if (inFlightBy[pool] >= caps[pool]) { i += 1; continue; }
+    queue.splice(i, 1);
+    if (!job) continue;
     inFlight += 1;
+    inFlightBy[pool] += 1;
     // `runJob` non rilancia mai (cattura tutto e chiude il job come `failed`),
     // ma il `catch` resta come rete: un'eccezione sfuggita qui lascerebbe
-    // `inFlight` alto per sempre, cioè un posto occupato da nessuno.
+    // un posto occupato da nessuno.
     runJob(id)
       .catch(() => {})
       .finally(() => {
         inFlight -= 1;
+        inFlightBy[pool] -= 1;
         pump();
       });
   }
@@ -379,12 +431,19 @@ async function runJob(nextId) {
     emitter.emit(`job:${job.id}:note`, job.note);
   };
 
+  // Avanzamento da conservare anche se il processo muore (vedi la ripresa in
+  // reconcileOrphanJobs): si scrive subito su disco.
+  const checkpoint = (data) => {
+    job.checkpoint = { ...(job.checkpoint ?? {}), ...data };
+    persistStore();
+  };
+
   const entry = handlers.get(job.type);
   const controller = entry.interruptible ? new AbortController() : null;
   if (controller) controllers.set(job.id, controller);
 
   try {
-    job.summary = await entry.handler(job.params, { log, progress, note, signal: controller?.signal });
+    job.summary = await entry.handler(job.params, { log, progress, note, checkpoint, signal: controller?.signal });
     job.status = 'success';
   } catch (err) {
     job.status = 'failed';
@@ -392,6 +451,9 @@ async function runJob(nextId) {
     // raggruppa i problemi per causa e non mostra mai un "Errore" senza motivo.
     const c = err.classification ?? classifyYtdlpError(err);
     job.error = { message: err.message, category: c.category, reason: c.reason, hint: c.hint };
+    // Un blocco di YouTube mette in pausa i controlli automatici, con attesa
+    // crescente (blockState). Non se il job l'ha già registrato da sé.
+    if (c.category === 'blocked' && !err.blockNoted) noteBlocked(c);
     log(`✘ Job fallito: ${err.message}`);
   } finally {
     // **Esattamente un evento terminale per job**, `success` o `failed`, mai due

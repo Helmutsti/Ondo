@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
-import { Download, Eye, EyeOff, Minimize2, Maximize2, PictureInPicture2, Gauge, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { MoreVertical, ExternalLink, CircleSlash, Download, Eye, EyeOff, Minimize2, Maximize2, PictureInPicture2, Gauge, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
 import { getVideo, listVideos, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { BackLink } from '../components/BackLink.jsx';
 import { VideoMetadataPanel, VideoHistoryPanel } from '../components/VideoMetadataPanels.jsx';
 import { openMetadataWizard } from '../lib/metadataWizard.js';
+import { ignoreWithConfirm } from '../lib/ignoreAction.js';
 import { useActivity } from '../lib/activityStore.js';
 import { actionsFor } from '../lib/reviewActions.js';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
@@ -18,7 +19,8 @@ import { useQueue, removeFromQueue, clearQueue } from '../lib/queueStore.js';
 import { usePlayer, setCurrent, getVideoEl, useMiniPlayerEnabled, setMinimized, useAutoplayOnOpen } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
 
-const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 0.25, 0.5, 0.75];
+// Velocità in ordine crescente, per il menu a tendina (prima era un bottone a giro).
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
 const DOWNLOAD_LABEL = { none: 'Non scaricato', downloading: 'In download', downloaded: 'Scaricato', failed: 'Errore download' };
 
 export function VideoDetailPage() {
@@ -33,7 +35,9 @@ export function VideoDetailPage() {
   const [notice, setNotice] = useState(null);
   const [isPiP, setIsPiP] = useState(false);
   const [pipError, setPipError] = useState(null);
-  const [speedIndex, setSpeedIndex] = useState(0);
+  const [speedIndex, setSpeedIndex] = useState(SPEEDS.indexOf(1));
+  const [moreOpen, setMoreOpen] = useState(false);
+  const navigate = useNavigate();
   const [descExpanded, setDescExpanded] = useState(false);
   const [descClamped, setDescClamped] = useState(false);
   const descRef = useRef(null);
@@ -67,7 +71,7 @@ export function VideoDetailPage() {
   // Il browser azzera playbackRate a 1x a ogni nuovo <video src>: si resetta lo
   // stato in coppia, così l'etichetta del pulsante non mente sulla velocità
   // reale quando si passa da un video all'altro.
-  useEffect(() => setSpeedIndex(0), [id]);
+  useEffect(() => setSpeedIndex(SPEEDS.indexOf(1)), [id]);
   useEffect(() => { autoplayedRef.current = false; }, [id]);
   useEffect(() => setDescExpanded(false), [id]);
 
@@ -102,8 +106,7 @@ export function VideoDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video?.id, video?.videoUrl, location.state]);
 
-  function cycleSpeed() {
-    const next = (speedIndex + 1) % SPEEDS.length;
+  function chooseSpeed(next) {
     setSpeedIndex(next);
     const el = getVideoEl();
     if (el) el.playbackRate = SPEEDS[next];
@@ -253,10 +256,17 @@ export function VideoDetailPage() {
         reload();
         return;
       }
-      await setHidden(rid, false); // unhide
+      if (kind === 'unhide') await setHidden(rid, false);
       reload();
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  // «Ignora per sempre»: dopo, la scheda non esiste più → si torna indietro.
+  async function handleIgnore() {
+    if (await ignoreWithConfirm(video)) {
+      if (window.history.length > 1) navigate(-1); else navigate('/');
     }
   }
 
@@ -404,16 +414,39 @@ export function VideoDetailPage() {
                 </button>
               )}
               {isDownloaded && (
-                <button className="btn" onClick={cycleSpeed} title="Cambia velocità di riproduzione">
+                <label className="speed-select" title="Velocità di riproduzione">
                   <Gauge size={14} />
-                  {SPEEDS[speedIndex]}x
-                </button>
+                  <select value={speedIndex} onChange={(e) => chooseSpeed(Number(e.target.value))} aria-label="Velocità di riproduzione">
+                    {SPEEDS.map((sp, i) => <option key={sp} value={i}>Velocità {sp}×</option>)}
+                  </select>
+                </label>
               )}
               {downloadAction && (
                 <button className="btn btn-primary" onClick={() => handleAction('download', downloadAction.label)}>
                   <Download size={14} />{downloadAction.label}
                 </button>
               )}
+              {/* Le azioni rare (redesign R4.5) stanno qui, non in vista. */}
+              <span className="chip-menu-wrap">
+                <button className="icon-btn" aria-label="Altre azioni" title="Altre azioni" onClick={(e) => { e.stopPropagation(); setMoreOpen((o) => !o); }}>
+                  <MoreVertical size={16} />
+                </button>
+                {moreOpen && (
+                  <>
+                    <div className="menu-backdrop" onClick={() => setMoreOpen(false)}></div>
+                    <div className="menu-list detail-menu" onClick={() => setMoreOpen(false)}>
+                      {isDownloaded && (
+                        <button className="menu-item" onClick={() => handleAction('download')}><RefreshCw size={15} />Riscarica…</button>
+                      )}
+                      <button className="menu-item" onClick={() => openMetadataWizard({ label: video.title ?? video.id, videos: [video], allLabel: 'Questo video' })}><FileDown size={15} />Aggiorna metadati…</button>
+                      {hideAction?.kind === 'hide' && <button className="menu-item" onClick={handleArchive}><EyeOff size={15} />Nascondi</button>}
+                      {hideAction?.kind === 'unhide' && <button className="menu-item" onClick={() => handleAction('unhide', 'Ripristinato')}><Eye size={15} />Mostra di nuovo</button>}
+                      {video.webpageUrl && <a className="menu-item" href={video.webpageUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Apri su YouTube</a>}
+                      <button className="menu-item danger" onClick={handleIgnore}><CircleSlash size={15} />Ignora per sempre…</button>
+                    </div>
+                  </>
+                )}
+              </span>
             </div>
           </div>
 
@@ -540,30 +573,6 @@ export function VideoDetailPage() {
                     : 'Video singolo'}
                 </span>
               </div>
-            </div>
-            <div className="sync-actions">
-              {/* "Riscarica" (M55): unico punto per rilanciare il download di un
-                  video GIÀ scaricato (utile per riprovare una qualità più alta).
-                  Passa da startDownload → confirm "Elimina e ri-scarica". Visibile
-                  solo se scaricato: per gli altri stati c'è già il tasto Scarica/Riprova. */}
-              {isDownloaded && (
-                <button className="btn" onClick={() => handleAction('download')}>
-                  <RefreshCw size={14} />Riscarica
-                </button>
-              )}
-              <button className="btn" onClick={() => openMetadataWizard({ label: video.title ?? video.id, videos: [video], allLabel: 'Questo video' })}>
-                <FileDown size={14} />Aggiorna metadati…
-              </button>
-              {hideAction?.kind === 'hide' && (
-                <button className="btn" onClick={handleArchive}>
-                  <EyeOff size={14} />Nascondi
-                </button>
-              )}
-              {hideAction?.kind === 'unhide' && (
-                <button className="btn" onClick={() => handleAction('unhide', 'Ripristinato')}>
-                  <Eye size={14} />Mostra di nuovo
-                </button>
-              )}
             </div>
           </div>
             </>

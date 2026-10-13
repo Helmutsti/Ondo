@@ -6,6 +6,7 @@
 // Non accoda una fonte che ha già un controllo in corso o in coda.
 import { listSources } from './sourceService.js';
 import { listActivity, triggerJob } from '../jobs/jobManager.js';
+import { getBlock } from './blockState.js';
 
 const TICK_MS = 60 * 1000;
 
@@ -30,6 +31,9 @@ export function startSourceScheduler({ log = console.log, logError = console.err
     if (running) return;
     running = true;
     try {
+      // YouTube ci sta bloccando: si aspetta la fine della pausa (attesa
+      // crescente, vedi blockState) invece di aggiungere richieste.
+      if (getBlock()) return;
       const [next] = await dueSources();
       if (next) {
         triggerJob('syncSource', { sourceId: next.id, auto: true });

@@ -170,6 +170,10 @@ function reconcileOnLoad(cat) {
     cat.queue = [];
     changed = true;
   }
+  if (!Array.isArray(cat.ignored)) {
+    cat.ignored = [];
+    changed = true;
+  }
   // Profili creator: al primo avvio ogni canale diventa un profilo a sé, con
   // la foto che aveva già. Poi ogni canale nuovo ne riceve uno alla lettura.
   if (ensureProfiles(cat)) changed = true;

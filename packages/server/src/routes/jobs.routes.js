@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { triggerJob, getJob, listJobs, listActivity, getPoolStatus, deleteJob, cancelJob, clearJobs, onJobLog, onJobProgress, onJobStatus } from '@catalog/core';
+import { triggerJob, getJob, listJobs, listActivity, getPoolStatus, getBlock, deleteJob, cancelJob, clearJobs, onJobLog, onJobProgress, onJobStatus } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
 import { toPublicJob, toPublicJobs } from '../lib/publicJob.js';
 
@@ -33,7 +33,7 @@ jobsRouter.get('/activity', asyncRoute(async (req, res) => {
       videos[videoId] = { jobId: j.id, status: j.status, progress: j.progress ?? null, queuePosition: j.queuePosition };
     }
   }
-  res.json({ active: pubActive, finished: pubFinished, finishedTotal: finished.length, videos, pool: getPoolStatus() });
+  res.json({ active: pubActive, finished: pubFinished, finishedTotal: finished.length, videos, pool: getPoolStatus(), block: getBlock() });
 }));
 
 jobsRouter.post('/jobs', asyncRoute(async (req, res) => {

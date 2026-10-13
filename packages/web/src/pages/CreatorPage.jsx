@@ -134,7 +134,7 @@ export function CreatorPage() {
         reload();
         return;
       }
-      await setHidden(videoId, false);
+      if (kind === 'unhide') await setHidden(videoId, false);
       reload();
     } catch (e) {
       setError(e.message);

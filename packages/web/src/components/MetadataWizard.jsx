@@ -68,6 +68,7 @@ function MetadataWizard({ opts }) {
   const [saveDefaults, setSaveDefaults] = useState(false);
   const [jobId, setJobId] = useState(opts.jobId ?? null);
   const [error, setError] = useState(null);
+  const par = useActivity()?.pool?.metadataParallel ?? 2;
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') closeMetadataWizard(); };
@@ -160,7 +161,7 @@ function MetadataWizard({ opts }) {
               </div>
               <div className="wizard-note">
                 <Clock size={15} />
-                {scoped.length} richieste a YouTube{onlyPresence ? ' (leggere: solo la verifica)' : ''} · {fmtMinutes((scoped.length * (onlyPresence ? 2 : SECONDS_PER_VIDEO)) / 3)} con 3 in parallelo. Puoi chiudere la finestra: continua in Attività.
+                {scoped.length} richieste a YouTube{onlyPresence ? ' (leggere: solo la verifica)' : ''} · {fmtMinutes((scoped.length * (onlyPresence ? 2 : SECONDS_PER_VIDEO)) / par)} con {par} in parallelo. Puoi chiudere la finestra: continua in Attività.
               </div>
             </div>
             <div className="wizard-foot">
@@ -235,6 +236,7 @@ const OUTCOME_ICON = { updated: CircleCheck, unchanged: CircleCheck, review: Wan
 
 function ProgressStep({ jobId, onReview }) {
   const activity = useActivity();
+  const par = activity?.pool?.metadataParallel ?? 2;
   const job = [...(activity?.active ?? []), ...(activity?.finished ?? [])].find((j) => j.id === jobId);
   const counts = job?.note?.counts ?? { total: 0, done: 0 };
   const recent = job?.note?.recent ?? [];
@@ -246,9 +248,16 @@ function ProgressStep({ jobId, onReview }) {
     <>
       <div className="wizard-body">
         <div className="progress-card">
+          {job?.note?.pausedUntil && (
+            <div className="act-warning" style={{ marginBottom: 14 }}>
+              <TriangleAlert size={16} />
+              <div><b>In pausa</b><span>{job.note.pauseHint ?? 'YouTube sta bloccando le richieste.'} Riprendo da solo alle {new Date(job.note.pausedUntil).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}.</span></div>
+              <Link to="/settings" className="btn small" onClick={closeMetadataWizard}>Cookie…</Link>
+            </div>
+          )}
           <div className="progress-big">
             <b>{counts.done} di {counts.total}</b>
-            <span>{finished ? (job.status === 'failed' ? ' · interrotto' : ' · finito') : left > 0 ? ` · ${fmtMinutes((left * SECONDS_PER_VIDEO) / 3)} rimanenti · 3 in parallelo` : ' · avvio…'}</span>
+            <span>{finished ? (job.status === 'failed' ? ' · interrotto' : ' · finito') : left > 0 ? ` · ${fmtMinutes((left * SECONDS_PER_VIDEO) / par)} rimanenti · ${par} in parallelo` : ' · avvio…'}</span>
           </div>
           <div className={`progress-bar${!job || (!finished && counts.done === 0) ? ' indeterminate' : ''}`} style={{ height: 8 }}>
             <div style={job && (finished || counts.done > 0) ? { width: `${pct}%` } : undefined}></div>

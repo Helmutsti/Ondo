@@ -97,8 +97,16 @@ export function ingestPlaylistEntries(catalog, sourceMeta, entries, paths, { app
     video.updatedAt = now();
   };
 
+  // «Ignorati per sempre»: la playlist può ancora elencarli, ma non rientrano.
+  const ignored = new Set((catalog.ignored ?? []).map((x) => x.id));
+  let ignoredCount = 0;
+
   for (const entry of entries) {
     const existing = catalog.videos[entry.id];
+    if (!existing && ignored.has(entry.id)) {
+      ignoredCount += 1;
+      continue;
+    }
 
     if (!existing) {
       if (entry.unavailable) {
@@ -177,7 +185,7 @@ export function ingestPlaylistEntries(catalog, sourceMeta, entries, paths, { app
     }
   }
 
-  return { newCount, newIds, healedCount, leftCount, rejoinedCount, toVerifyCount, placeholderCount };
+  return { newCount, newIds, healedCount, leftCount, rejoinedCount, toVerifyCount, placeholderCount, ignoredCount };
 }
 
 // Copertura dell'enumerazione (backlog #4): confronta i video realmente

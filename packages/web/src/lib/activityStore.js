@@ -83,6 +83,8 @@ export const isDownloadJob = (j) => j.type === 'downloadSingle' || j.type === 'q
 // Un blocco di YouTube (anti-bot, limite di richieste) nelle ultime ore:
 // la causa comune di molti errori insieme, mostrata come un solo avviso.
 export function recentBlock(data, hours = 6) {
+  // La pausa in corso decisa dal server (attesa crescente), se c'è.
+  if (data?.block) return { error: { hint: data.block.hint, category: 'blocked' }, until: data.block.until, level: data.block.level };
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
   return (data?.finished ?? []).find((j) => j.status === 'failed' && j.error?.category === 'blocked' && (j.finishedAt ?? '') >= since) ?? null;
 }

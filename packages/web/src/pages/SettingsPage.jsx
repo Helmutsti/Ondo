@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Download, Upload, Clapperboard, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff } from 'lucide-react';
-import { BACKUP_URL, restoreBackup, getConfig, setVideosRoot, setDefaultQuality, setParallel, uploadCookies, deleteCookies } from '../api/client.js';
+import { Download, Upload, Clapperboard, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff, CircleSlash } from 'lucide-react';
+import { BACKUP_URL, restoreBackup, getConfig, setVideosRoot, setDefaultQuality, setParallel, uploadCookies, deleteCookies, listIgnored, unignoreVideo } from '../api/client.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { showToast } from '../lib/toast.js';
@@ -347,6 +347,45 @@ export function SettingsPage() {
           </div>
         )}
       </div>
+
+      <IgnoredSection />
     </>
+  );
+}
+
+// I video «ignorati per sempre»: le sincronizzazioni non li reinseriscono.
+// Togliendoli da qui, al prossimo controllo della fonte rientrano (se la
+// playlist li elenca ancora).
+function IgnoredSection() {
+  const [list, setList] = useState(null);
+  useEffect(() => { listIgnored().then(setList).catch(() => setList([])); }, []);
+  async function restore(id) {
+    try {
+      setList(await unignoreVideo(id));
+      showToast('Non più ignorato: rientra al prossimo controllo della fonte.', 'success');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+  return (
+    <div className="d-desc">
+      <span className="label"><CircleSlash size={15} style={{ verticalAlign: -2 }} /> Video ignorati</span>
+      I video che hai scelto di ignorare per sempre: i controlli delle fonti non li reinseriscono in libreria.
+      {list === null ? null : list.length === 0 ? (
+        <div className="hint" style={{ marginTop: 10 }}>Nessun video ignorato.</div>
+      ) : (
+        <div className="ignored-list">
+          {list.map((x) => (
+            <div key={x.id} className="ignored-row">
+              <div className="ignored-text">
+                <b className="discreet-text">{x.title ?? x.id}</b>
+                <span className="discreet-text">{[x.channelName, new Date(x.at).toLocaleDateString('it-IT')].filter(Boolean).join(' · ')}</span>
+              </div>
+              <button className="btn small" onClick={() => restore(x.id)}>Non ignorare più</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
