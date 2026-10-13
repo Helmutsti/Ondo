@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Rss } from 'lucide-react';
 import { searchVideos, setHidden, setFavorite, deleteVideo, refreshMetadata, triggerJob, listProfiles, listSources } from '../api/client.js';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
+import { SkeletonRows } from '../components/Skeletons.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
@@ -94,7 +95,7 @@ export function SearchPage() {
       {!q.trim() ? (
         <div className="empty-state">Scrivi qualcosa per cercare nel catalogo.</div>
       ) : results === null ? (
-        <div className="empty-state"><span className="spinner"></span></div>
+        <SkeletonRows />
       ) : results.length === 0 && !creatorHits.length && !sourceHits.length ? (
         <div className="empty-state">Nessun risultato per "{q}".</div>
       ) : (

@@ -1383,7 +1383,11 @@ a.profile-chip:hover { border-color: var(--border); }
    l'azione principale (Scarica / Riprova) sta sulla copertina. Solo i video
    persi (spariti da YouTube senza essere stati scaricati) vanno in grigio. */
 .thumb-wrap { position: relative; }
-.card-row .thumb-wrap { flex: none; }
+/* Nella card a riga la larghezza la decide il contenitore della copertina
+   (prima la decideva .thumb-row, che però è una % del contenitore stesso:
+   la copertina si restringeva a 84px lasciando un vuoto prima del testo). */
+.card-row .thumb-wrap { flex: none; width: 35%; max-width: 168px; min-width: 84px; }
+.card-row .thumb-row { width: 100%; max-width: none; min-width: 0; }
 .thumb.lost img { filter: grayscale(1) brightness(.75); }
 .thumb.downloading img { filter: blur(6px); transition: filter .25s ease; }
 .card.lost .card-title { color: var(--muted); }
@@ -1442,7 +1446,7 @@ a.profile-chip:hover { border-color: var(--border); }
 .seg button.on { background: var(--border); color: var(--ink); }
 .seg button:hover { color: var(--ink); }
 .row-list { display: flex; flex-direction: column; gap: 4px; max-width: 980px; }
-.row-list .thumb-row { width: 200px; max-width: 200px; }
+.row-list .card-row .thumb-wrap { width: 200px; max-width: 200px; }
 
 .banner {
   display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
@@ -1470,7 +1474,7 @@ a.profile-chip:hover { border-color: var(--border); }
   .bulk-bar { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px; width: auto; transform: none; padding: 10px; gap: 6px; }
   .bulk-sep { display: none; }
   .bulk-count { width: 100%; text-align: center; }
-  .row-list .thumb-row { width: 40%; }
+  .row-list .card-row .thumb-wrap { width: 40%; }
   .banner { flex-wrap: wrap; }
   .library-head .page-actions { width: 100%; }
 }
@@ -1777,3 +1781,33 @@ a.profile-chip:hover { border-color: var(--border); }
 .speed-select option { background: var(--panel); }
 .detail-menu { right: 0; left: auto; min-width: 220px; }
 .search-hits { margin-bottom: 8px; } .search-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Copertine piccole (suggeriti, coda): niente «Scarica» sopra l'immagine e
+   pillola ridotta alla sola icona, che altrimenti coprono metà copertina. */
+.side-related .cover-action { display: none; }
+.side-related .cover-pill { font-size: 0; gap: 0; padding: 4px; }
+.side-related .cover-pill svg { width: 11px; height: 11px; }
+.side-related .dl-ring { width: 30px; height: 30px; }
+.side-related .dl-icon { width: 12px; height: 12px; }
+
+/* ===== Segnaposto di caricamento ===== */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sk {
+  display: block; border-radius: 8px;
+  background: linear-gradient(90deg, var(--panel) 0%, var(--panel2) 40%, #202026 50%, var(--panel2) 60%, var(--panel) 100%);
+  background-size: 300% 100%;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes sk-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; background: var(--panel2); } }
+.sk-thumb { aspect-ratio: 16/9; border-radius: var(--radius-card); }
+.sk-line { height: 12px; width: 90%; }
+.sk-line.short { width: 65%; }
+.sk-line.tiny { height: 9px; width: 45%; }
+.sk-avatar { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.sk-circle { width: 74px; height: 74px; border-radius: 50%; margin-bottom: 12px; }
+.card.skeleton { display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.sk-info { display: flex; align-items: center; gap: 8px; }
+.card-row.skeleton { pointer-events: none; }
+.card-row.skeleton .row-body { gap: 8px; }
+.profile-card.skeleton { gap: 8px; pointer-events: none; }

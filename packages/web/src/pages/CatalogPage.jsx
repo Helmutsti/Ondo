@@ -4,6 +4,7 @@ import { Star, SquareCheck, LayoutGrid, List, CloudDownload, FileDown, ListPlus,
 import { listVideos, listSources, listProfiles, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { ProblemGroups } from '../components/ProblemGroups.jsx';
+import { SkeletonGrid, SkeletonRows } from '../components/Skeletons.jsx';
 import { useActivity } from '../lib/activityStore.js';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
@@ -287,7 +288,7 @@ export function CatalogPage() {
       )}
 
       {videos === null ? (
-        <div className="empty-state"><span className="spinner"></span></div>
+        layout === 'row' ? <SkeletonRows className="row-list" /> : <SkeletonGrid />
       ) : view.value === 'problemi' && !selectMode && filtered.length > 0 ? (
         <ProblemGroups videos={filtered} onChanged={reload} />
       ) : filtered.length === 0 ? (

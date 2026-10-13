@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Pin, Search } from 'lucide-react';
 import { listProfiles, updateProfile } from '../api/client.js';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
+import { SkeletonProfiles } from '../components/Skeletons.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { notifyProfilesChanged } from '../lib/profileEvents.js';
 
@@ -87,7 +88,7 @@ export function CreatorsPage() {
   }, [profiles, query, sort, filter]);
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!profiles) return <div className="empty-state"><span className="spinner"></span></div>;
+  if (!profiles) return <><div className="page-head"><h1>Creator</h1></div><SkeletonProfiles count={12} /></>;
 
   const channelCount = profiles.reduce((n, p) => n + p.channels.length, 0);
   const pinned = visible.filter((p) => p.pinned);

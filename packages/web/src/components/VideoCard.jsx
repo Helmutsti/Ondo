@@ -147,7 +147,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
         <span className={`card-check${selected ? ' on' : ''}`} aria-hidden="true">{selected && <Check size={13} strokeWidth={3} />}</span>
       )}
       {pill && (
-        <span className={`cover-pill ${pill.kind}${selectMode || selected ? ' shifted' : ''}`}>
+        <span className={`cover-pill ${pill.kind}${selectMode || selected ? ' shifted' : ''}`} title={pill.label}>
           <PillIcon size={12} />{pill.label}
         </span>
       )}

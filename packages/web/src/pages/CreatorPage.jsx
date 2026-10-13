@@ -9,6 +9,7 @@ import {
 } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
+import { SkeletonGrid } from '../components/Skeletons.jsx';
 import { PhotoModal, MergeModal } from '../components/ProfileModals.jsx';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
@@ -156,7 +157,7 @@ export function CreatorPage() {
   }, [byChannel, filter, sort]);
 
   if (error && !profile) return <div className="notice error">{error}</div>;
-  if (!profile) return <div className="empty-state"><span className="spinner"></span></div>;
+  if (!profile) return <div style={{ marginTop: 160 }}><SkeletonGrid count={6} /></div>;
 
   const multi = profile.channels.length > 1;
 
@@ -289,7 +290,7 @@ export function CreatorPage() {
       </div>
 
       {!videos ? (
-        <div className="empty-state"><span className="spinner"></span></div>
+        <SkeletonGrid count={6} />
       ) : shown.length === 0 ? (
         <div className="empty-state">Nessun video in questa vista.</div>
       ) : (
