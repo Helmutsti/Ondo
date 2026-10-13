@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutGrid, Rss, Search, Settings, X, Users, Pin, ArrowRight, Activity } from 'lucide-react';
 import { ActivityIndicator } from './ActivityIndicator.jsx';
+import { MetadataWizardHost } from './MetadataWizard.jsx';
 import { useActivity } from '../lib/activityStore.js';
 import { listProfiles } from '../api/client.js';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
@@ -58,6 +59,7 @@ export function Layout() {
     <div className="shell">
       <ToastHost />
       <DialogHost />
+      <MetadataWizardHost />
       <header className="topbar">
         <Link to="/" className="logo"><img src="/ondo-logo.svg" alt="Ondo" /></Link>
         <form className="search-box" onSubmit={submitSearch}>

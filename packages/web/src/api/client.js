@@ -108,6 +108,18 @@ export const listJobs = () => request('/api/jobs');
 // Attività: tutti i job attivi + i terminati delle ultime 24 ore, e il job di
 // download di ogni video (per il progresso sulle card anche dopo un refresh).
 export const getActivity = () => request('/api/activity');
+// Wizard dei metadati.
+export const startMetadataUpdate = ({ videoIds, fields, rules, label }) =>
+  request('/api/metadata/update', { method: 'POST', body: JSON.stringify({ videoIds, fields, rules, label }) });
+export const listMetadataReviews = () => request('/api/metadata/reviews');
+export const resolveMetadataReview = (id, choices, lock = []) =>
+  request(`/api/videos/${encodeURIComponent(id)}/review`, { method: 'POST', body: JSON.stringify({ choices, lock }) });
+export const setVideoField = (id, field, value) =>
+  request(`/api/videos/${encodeURIComponent(id)}/fields`, { method: 'PATCH', body: JSON.stringify({ field, value }) });
+export const setFieldLock = (id, field, locked) =>
+  request(`/api/videos/${encodeURIComponent(id)}/locks`, { method: 'POST', body: JSON.stringify({ field, locked }) });
+export const restoreHistory = (id, entryId) =>
+  request(`/api/videos/${encodeURIComponent(id)}/history/${encodeURIComponent(entryId)}/restore`, { method: 'POST' });
 export const getJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`);
 export const deleteJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' });
 // Interruzione manuale di un job running/queued (M51): solo downloadSingle/downloadPending la supportano.

@@ -45,6 +45,11 @@ export async function toPublicJob(job) {
     };
   }
 
+  // Wizard dei metadati: l'etichetta scelta all'avvio ("Profilo Angelica", …).
+  if (job.type === 'updateMetadata') {
+    return { ...job, thumbnails: [], thumbnailsMore: 0, title: job.params?.label ? `Aggiorna metadati · ${job.params.label}` : 'Aggiorna metadati' };
+  }
+
   // Controllo di una fonte: il nome lo scrive l'handler nella nota appena parte.
   if (job.type === 'syncSource') {
     return { ...job, thumbnails: [], thumbnailsMore: 0, title: job.note?.sourceName ?? null };

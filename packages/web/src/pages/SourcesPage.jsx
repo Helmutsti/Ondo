@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { RefreshCw, Plus, Rss, MoreVertical, Trash2, ExternalLink, CalendarClock, CloudDownload, Gauge, SlidersHorizontal, TriangleAlert, X } from 'lucide-react';
-import { listSources, removeSource, syncSources, triggerJob, setSourceRules, getConfig } from '../api/client.js';
+import { RefreshCw, Plus, Rss, MoreVertical, Trash2, ExternalLink, CalendarClock, CloudDownload, Gauge, SlidersHorizontal, TriangleAlert, X, WandSparkles } from 'lucide-react';
+import { listSources, removeSource, syncSources, triggerJob, setSourceRules, getConfig, listVideos } from '../api/client.js';
+import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { ActivityRow } from '../components/ActivityRow.jsx';
 import { useActivity, refreshActivity } from '../lib/activityStore.js';
@@ -140,6 +141,17 @@ export function SourcesPage() {
     }
   }
 
+  async function metadataFor(source) {
+    setMenuFor(null);
+    try {
+      const all = await listVideos();
+      const vids = all.filter((v) => v.sources?.some((x) => x.sourceId === source.id && !x.leftAt));
+      openMetadataWizard({ label: `Fonte ${source.name}`, videos: vids, allLabel: 'Tutta la fonte' });
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
   async function handleRemove(source) {
     setMenuFor(null);
     const ok = await confirmDialog({
@@ -238,6 +250,7 @@ export function SourcesPage() {
                     {menuFor === s.id && (
                       <div className="menu-list source-menu" onClick={(e) => e.stopPropagation()}>
                         <button className="menu-item" onClick={() => { setMenuFor(null); setRulesFor(s); }}><SlidersHorizontal size={15} />Regole…</button>
+                        <button className="menu-item" onClick={() => metadataFor(s)}><WandSparkles size={15} />Aggiorna metadati dei video…</button>
                         <a className="menu-item" href={s.url} target="_blank" rel="noreferrer" onClick={() => setMenuFor(null)}><ExternalLink size={15} />Apri su YouTube</a>
                         <button className="menu-item danger" onClick={() => handleRemove(s)}><Trash2 size={15} />Rimuovi fonte</button>
                       </div>

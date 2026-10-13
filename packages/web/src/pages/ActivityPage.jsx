@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TriangleAlert, Trash2 } from 'lucide-react';
-import { clearJobs, getConfig, setParallel } from '../api/client.js';
+import { TriangleAlert, Trash2, WandSparkles } from 'lucide-react';
+import { openMetadataWizard, useMetadataWizard } from '../lib/metadataWizard.js';
+import { clearJobs, getConfig, setParallel, listMetadataReviews } from '../api/client.js';
 import { ActivityRow } from '../components/ActivityRow.jsx';
 import { useActivity, refreshActivity, recentBlock } from '../lib/activityStore.js';
 import { useTitle } from '../hooks/useTitle.js';
@@ -18,6 +19,24 @@ export function ActivityPage() {
   const data = useActivity();
   const [parallel, setParallelState] = useState(null);
   const [parallelOptions, setParallelOptions] = useState([1, 2, 3, 4, 5, 6]);
+  const [reviews, setReviews] = useState([]);
+  const wizardOpen = !!useMetadataWizard();
+  const lastFinished = data?.finished?.[0]?.id;
+  // Le revisioni lasciate in sospeso dal wizard ("Chiedimi se diverso"):
+  // si ricaricano quando finisce un lavoro e quando si chiude il wizard.
+  useEffect(() => {
+    if (wizardOpen) return;
+    listMetadataReviews().then(setReviews).catch(() => {});
+  }, [lastFinished, wizardOpen]);
+  const reviewGroups = useMemo(() => {
+    const map = new Map();
+    for (const v of reviews) {
+      const key = v.pendingReview?.label ?? 'Aggiorna metadati';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(v);
+    }
+    return [...map.entries()];
+  }, [reviews]);
 
   useEffect(() => {
     getConfig().then((c) => {
@@ -96,6 +115,21 @@ export function ActivityPage() {
       )}
 
       {section('In corso', groups.running, 'Niente in corso.')}
+      {reviewGroups.length > 0 && (
+        <section className="act-section">
+          <div className="section-label">Da rivedere · {reviews.length}</div>
+          {reviewGroups.map(([label, list]) => (
+            <div key={label} className="review-banner">
+              <WandSparkles size={18} />
+              <div>
+                <b>{list.length} video con metadati diversi da quelli salvati</b>
+                <span className="discreet-text">Da «{label}»: decidi tu quali valori tenere.</span>
+              </div>
+              <button className="btn small" onClick={() => openMetadataWizard({ label, step: 'review', videos: list })}>Rivedi</button>
+            </div>
+          ))}
+        </section>
+      )}
       {groups.queued.length > 0 && section('In coda', groups.queued, '')}
       {groups.failed.length > 0 && section('Problemi (ultime 24 ore)', groups.failed, '')}
       {section('Completati oggi', groups.done, 'Ancora niente oggi.')}

@@ -12,7 +12,8 @@ import { startDownload, startBulkDownload } from '../lib/downloadActions.js';
 import { LIBRARY_VIEWS, countViews, viewByValue, isLost, isSaved } from '../lib/libraryFilters.js';
 import { statusColor } from '../lib/status.js';
 import { addToQueue } from '../lib/queueStore.js';
-import { showToast, updateToast } from '../lib/toast.js';
+import { showToast } from '../lib/toast.js';
+import { openMetadataWizard } from '../lib/metadataWizard.js';
 
 const SINGLE = '__single__';
 const LAYOUT_KEY = 'ondo:libraryLayout';
@@ -149,22 +150,11 @@ export function CatalogPage() {
     await startBulkDownload(ids, { onSettled: reload });
   }
 
-  async function bulkMetadata() {
+  // Il wizard dei metadati sulla selezione: campi, regole e revisione.
+  function bulkMetadata() {
     const list = selectedVideos;
     exitSelect();
-    setBusy(true);
-    const toastId = showToast(`Aggiornamento metadati: 0 su ${list.length}…`, 'info', 0);
-    let failed = 0;
-    for (let i = 0; i < list.length; i++) {
-      try { await refreshMetadata(list[i].id); } catch { failed += 1; }
-      updateToast(toastId, { message: `Aggiornamento metadati: ${i + 1} su ${list.length}…` }, 0);
-    }
-    updateToast(toastId, {
-      message: `Metadati aggiornati: ${list.length - failed} su ${list.length}${failed ? ` (${failed} non riusciti)` : ''}.`,
-      type: failed ? 'error' : 'success'
-    });
-    setBusy(false);
-    reload();
+    openMetadataWizard({ label: `${list.length} video selezionati`, videos: list, allLabel: 'Tutti i selezionati' });
   }
 
   function bulkQueue() {
@@ -332,7 +322,7 @@ export function CatalogPage() {
             </button>
           )}
           <button className="btn small" disabled={busy || selected.size === 0} onClick={bulkMetadata}>
-            <FileDown size={14} />Aggiorna metadati
+            <FileDown size={14} />Aggiorna metadati…
           </button>
           <button className="btn small" disabled={busy || queueable.length === 0} onClick={bulkQueue} title="Solo i video scaricati">
             <ListPlus size={14} />Aggiungi alla coda

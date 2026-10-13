@@ -10,6 +10,7 @@ import { libraryRouter } from './routes/library.routes.js';
 import { backupRouter } from './routes/backup.routes.js';
 import { configRouter } from './routes/config.routes.js';
 import { profilesRouter } from './routes/profiles.routes.js';
+import { metadataRouter } from './routes/metadata.routes.js';
 import { mountMediaRoutes } from './media/mediaRoutes.js';
 
 // M96 — dichiara QUALE applicazione siamo: decide il file di impostazioni
@@ -58,6 +59,7 @@ app.use('/api', libraryRouter);
 app.use('/api', backupRouter);
 app.use('/api', configRouter);
 app.use('/api', profilesRouter);
+app.use('/api', metadataRouter);
 mountMediaRoutes(app);
 
 // Web GUI compilata (M63): quando la build di Vite è presente

@@ -7,6 +7,7 @@ import { actionsFor } from '../lib/reviewActions.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { useActiveDownloadJobId } from '../lib/downloadTracker.js';
 import { useVideoActivity } from '../lib/activityStore.js';
+import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { useJobStream } from '../hooks/useJobStream.js';
 import { addToQueue, removeFromQueue, useQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
@@ -90,6 +91,10 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
     if (kind === 'queue') {
       addToQueue(video);
       showToast('Aggiunto alla coda.', 'success', 2000);
+      return;
+    }
+    if (kind === 'metadata') {
+      openMetadataWizard({ label: video.title ?? video.id, videos: [video], allLabel: 'Questo video' });
       return;
     }
     if (kind === 'unqueue') {
@@ -227,7 +232,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
             )}
             {/* Aggiorna metadati: anche sui rimossi (ri-verifica) */}
             <button className="menu-item" onClick={() => act('metadata')}>
-              <FileDown size={15} />Aggiorna metadati
+              <FileDown size={15} />Aggiorna metadati…
             </button>
             {key && (
               <Link className="menu-item" to={creatorPath} onClick={() => setMenuOpen(false)}>

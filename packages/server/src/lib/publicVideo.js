@@ -20,7 +20,9 @@ function encodeRelPath(relPath) {
 // enrichSource la scarica. Per gli altri estrattori senza sourceUrl → null.
 function resolveThumbnailUrl(video) {
   const local = video.thumbnail?.localPath;
-  if (local) return `/media/thumbnails/${encodeRelPath(local)}`;
+  // L'impronta come cache-bust: una copertina sostituita col wizard tiene lo
+  // stesso nome di file, e il browser mostrerebbe ancora quella vecchia.
+  if (local) return thumbFileUrl(local, video.thumbnail?.sha256);
   const source = video.thumbnail?.sourceUrl;
   if (source) return source;
   if (video.extractor === 'youtube' && video.id) {
@@ -41,6 +43,26 @@ export function avatarUrl(file) {
 
 // creatorIndex: channelKey → { profileId, avatar } (core getCreatorIndex). La
 // foto accanto a un video è quella del suo profilo creator.
+function thumbFileUrl(rel, version) {
+  if (!rel) return null;
+  return `/media/thumbnails/${encodeRelPath(rel)}${version ? `?v=${encodeURIComponent(String(version).slice(0, 12))}` : ''}`;
+}
+
+// Valori dei metadati con dentro una copertina ({ file, sha }) → con l'URL.
+function withThumbUrl(field, value) {
+  if (field !== 'thumbnail' || !value?.file) return value;
+  return { ...value, url: thumbFileUrl(value.file, value.sha) };
+}
+
+function publicReview(review) {
+  if (!review) return null;
+  const fields = {};
+  for (const [f, v] of Object.entries(review.fields ?? {})) {
+    fields[f] = { current: withThumbUrl(f, v?.current), incoming: withThumbUrl(f, v?.incoming) };
+  }
+  return { ...review, fields };
+}
+
 export function toPublicVideo(video, creatorIndex = {}) {
   const key = channelKey(video);
   const creator = key ? creatorIndex[key] : null;
@@ -50,6 +72,9 @@ export function toPublicVideo(video, creatorIndex = {}) {
     // frontend mostra badge/chip/ordina senza reimplementare la regola. I flag
     // grezzi (presence/download/hidden/removedAt) restano comunque nell'oggetto.
     category: videoCategory(video),
+    pendingReview: publicReview(video.pendingReview),
+    metadataHistory: (video.metadataHistory ?? []).map((e) => ({ ...e, from: withThumbUrl(e.field, e.from), to: withThumbUrl(e.field, e.to) })),
+    locks: video.locks ?? [],
     videoUrl: video.video?.localPath ? `/media/videos/${encodeRelPath(video.video.localPath)}` : null,
     thumbnailUrl: resolveThumbnailUrl(video),
     channel: {

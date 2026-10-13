@@ -5,6 +5,9 @@ import { getVideo, listVideos, setHidden, setFavorite, deleteVideo, triggerJob, 
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { BackLink } from '../components/BackLink.jsx';
+import { VideoMetadataPanel, VideoHistoryPanel } from '../components/VideoMetadataPanels.jsx';
+import { openMetadataWizard } from '../lib/metadataWizard.js';
+import { useActivity } from '../lib/activityStore.js';
 import { actionsFor } from '../lib/reviewActions.js';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
@@ -22,6 +25,7 @@ export function VideoDetailPage() {
   const { id } = useParams();
   const location = useLocation();
   const [video, setVideo] = useState(null);
+  const [tab, setTab] = useState('desc');
   const [related, setRelated] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [relatedCollapsed, setRelatedCollapsed] = useState(false);
@@ -54,6 +58,10 @@ export function VideoDetailPage() {
     getVideo(id).then(setVideo).catch((e) => setError(e.message));
   }
 
+  // Un lavoro appena finito (metadati dal wizard, download) cambia la scheda.
+  const lastFinished = useActivity()?.finished?.[0]?.id;
+  useEffect(() => { if (lastFinished && video) reload(); }, [lastFinished]);
+
   useEffect(reload, [id]);
   useEffect(() => setPipError(null), [id]);
   // Il browser azzera playbackRate a 1x a ogni nuovo <video src>: si resetta lo
@@ -75,7 +83,7 @@ export function VideoDetailPage() {
   useLayoutEffect(() => {
     const el = descRef.current;
     setDescClamped(!!el && el.scrollHeight > el.clientHeight + 1);
-  }, [video?.description, video?.id]);
+  }, [video?.description, video?.id, tab]);
 
   // Aggancio al player globale (M54): quando questo video è scaricabile,
   // diventa il "corrente" del player globale, che si aggancia allo slot qui
@@ -435,39 +443,55 @@ export function VideoDetailPage() {
             </div>
           )}
 
-          {(video.description || video.tags?.length > 0) && (
-            <div className="d-desc">
-              {video.description && (
-                <>
-                  <span className="label">Descrizione</span>
-                  <div ref={descRef} className={`d-desc-text discreet-text${descExpanded ? ' expanded' : ''}`}>
-                    {video.description}
-                  </div>
-                  {descClamped && (
-                    <button
-                      type="button"
-                      className="d-desc-toggle"
-                      onClick={() => setDescExpanded((v) => !v)}
-                      aria-expanded={descExpanded}
-                    >
-                      {descExpanded ? 'Mostra meno' : 'Mostra altro'}
-                    </button>
+          {/* Schede (redesign R4.5): Descrizione · Metadati · Cronologia · File e qualità. */}
+          <div className="d-tabs" role="tablist">
+            {[['desc', 'Descrizione'], ['meta', 'Metadati'], ['history', `Cronologia${video.metadataHistory?.length ? ` · ${video.metadataHistory.length}` : ''}`], ['file', 'File e qualità']].map(([key, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>{label}</button>
+            ))}
+          </div>
+
+          {tab === 'desc' && (
+            <>
+              {(video.description || video.tags?.length > 0) && (
+                <div className="d-desc">
+                  {video.description && (
+                    <>
+                      <span className="label">Descrizione</span>
+                      <div ref={descRef} className={`d-desc-text discreet-text${descExpanded ? ' expanded' : ''}`}>
+                        {video.description}
+                      </div>
+                      {descClamped && (
+                        <button
+                          type="button"
+                          className="d-desc-toggle"
+                          onClick={() => setDescExpanded((v) => !v)}
+                          aria-expanded={descExpanded}
+                        >
+                          {descExpanded ? 'Mostra meno' : 'Mostra altro'}
+                        </button>
+                      )}
+                    </>
                   )}
-                </>
-              )}
-              {/* I tag restano sempre visibili (non nella parte collassabile):
-                  sono chip brevi già pensati per una scansione rapida, non
-                  prosa da troncare come la descrizione — nasconderli dietro
-                  "Mostra altro" li renderebbe meno utili senza risparmiare
-                  spazio in modo apprezzabile. */}
-              {video.tags?.length > 0 && (
-                <div className="d-tags">
-                  {video.tags.slice(0, 12).map((tag) => <div key={tag} className="d-tag discreet-text">{tag}</div>)}
+                  {/* I tag restano sempre visibili (non nella parte collassabile):
+                      sono chip brevi già pensati per una scansione rapida, non
+                      prosa da troncare come la descrizione — nasconderli dietro
+                      "Mostra altro" li renderebbe meno utili senza risparmiare
+                      spazio in modo apprezzabile. */}
+                  {video.tags?.length > 0 && (
+                    <div className="d-tags">
+                      {video.tags.slice(0, 12).map((tag) => <div key={tag} className="d-tag discreet-text">{tag}</div>)}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
+              {!video.description && !video.tags?.length && <div className="empty-state">Nessuna descrizione.</div>}
+            </>
+          )}
+          {tab === 'meta' && <VideoMetadataPanel video={video} onChange={setVideo} />}
+          {tab === 'history' && <VideoHistoryPanel video={video} onChange={setVideo} />}
+          {tab === 'file' && (
+            <>
           {techFields.length > 0 && (
             <div className="d-desc">
               <span className="label">Dati tecnici</span>
@@ -527,8 +551,8 @@ export function VideoDetailPage() {
                   <RefreshCw size={14} />Riscarica
                 </button>
               )}
-              <button className="btn" onClick={() => handleAction('metadata')}>
-                <FileDown size={14} />Scarica metadati
+              <button className="btn" onClick={() => openMetadataWizard({ label: video.title ?? video.id, videos: [video], allLabel: 'Questo video' })}>
+                <FileDown size={14} />Aggiorna metadati…
               </button>
               {hideAction?.kind === 'hide' && (
                 <button className="btn" onClick={handleArchive}>
@@ -542,6 +566,8 @@ export function VideoDetailPage() {
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {(queue.length > 0 || related.length > 0) && (

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, GitMerge, MoreVertical, Pencil, Pin, Rss, Camera, Split } from 'lucide-react';
+import { ArrowLeft, GitMerge, MoreVertical, Pencil, Pin, Rss, Camera, Split, WandSparkles } from 'lucide-react';
+import { openMetadataWizard } from '../lib/metadataWizard.js';
+import { useActivity } from '../lib/activityStore.js';
 import {
   getProfile, listProfileVideos, updateProfile, splitChannel,
   setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata
@@ -59,6 +61,10 @@ export function CreatorPage() {
   }, [id]);
 
   useTitle(profile?.name);
+
+  // Un lavoro appena finito (download, metadati) cambia i video del profilo.
+  const lastFinished = useActivity()?.finished?.[0]?.id;
+  useEffect(() => { if (lastFinished) reload(); }, [lastFinished]);
 
   useEffect(() => {
     if (!chipMenu) return undefined;
@@ -197,6 +203,9 @@ export function CreatorPage() {
           </div>
         </div>
         <div className="profile-actions">
+          <button className="btn" disabled={!videos?.length} onClick={() => openMetadataWizard({ label: `Profilo ${profile.name}`, videos, allLabel: 'Tutto il profilo' })}>
+            <WandSparkles size={14} />Aggiorna metadati…
+          </button>
           <button className={`btn${profile.pinned ? ' btn-active' : ''}`} onClick={togglePin} title={profile.pinned ? 'Togli dalla sidebar' : 'Mostra in sidebar'}>
             <Pin size={14} fill={profile.pinned ? 'currentColor' : 'none'} />{profile.pinned ? 'Fissato' : 'Fissa in sidebar'}
           </button>

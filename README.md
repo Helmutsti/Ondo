@@ -138,6 +138,8 @@ Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resour
 
 **Controlli automatici delle fonti.** Ogni fonte si controlla da sola (di default ogni 6 ore): video nuovi, usciti dalla playlist, spariti da YouTube. Da **Fonti → Regole** cambi la frequenza, scegli la qualità e accendi lo scaricamento automatico dei video nuovi — spento di default, utile per una playlist usata come «da scaricare». I lavori in corso, in coda e falliti stanno in **Attività** (anche dall'indicatore in alto).
 
+**Aggiornare i metadati senza perdere niente.** «Aggiorna metadati…» (dal profilo di un creator, dalla selezione in Libreria, da una fonte o da un video) apre un wizard: scegli quali video e quali campi, e per ogni campo se riempire solo i vuoti, sovrascrivere o farti chiedere. Le differenze da decidere restano in **Attività › Da rivedere**. Un campo pieno non viene mai sostituito da uno vuoto; i campi che modifichi a mano si bloccano da soli; ogni cambio finisce nella **Cronologia** del video e si può annullare, copertine comprese.
+
 **Creator con più canali.** In **Creator** ogni canale nasce come profilo a sé. Se una persona ha più canali, apri il suo profilo e usa «Unisci un altro canale»; dal menu ⋮ di un canale puoi separarlo di nuovo. La foto del profilo si sceglie cliccandola: quella di uno dei suoi canali (scaricata da YouTube solo quando lo chiedi) o un'immagine tua. In sidebar restano i creator che fissi.
 
 **Usare Ondo con qualcuno che guarda lo schermo.** In **Impostazioni → Modalità discreta** puoi sfocare le sole immagini (copertine, foto dei creator, player) oppure anche titoli e nomi. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta vale solo per il browser in cui la fai.

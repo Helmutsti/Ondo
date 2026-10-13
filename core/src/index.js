@@ -5,6 +5,9 @@ import { enrichSourceJob } from './jobs/jobs/enrichSource.js';
 import { addSourceJob } from './jobs/jobs/addSource.js';
 import { addVideoJob } from './jobs/jobs/addVideo.js';
 import { syncSourceJob } from './jobs/jobs/syncSourceJob.js';
+import { updateMetadataJob } from './jobs/jobs/updateMetadataJob.js';
+import { listPendingReviews, resolveReview, setVideoField, setFieldLock, restoreHistoryEntry } from './services/metadataUpdateService.js';
+import { FIELD_NAMES, DEFAULT_FIELD_RULES, EDITABLE_FIELDS } from './services/metadataFields.js';
 import { quickDownloadJob } from './jobs/jobs/quickDownload.js';
 import { listQueue, enqueueLink, dequeueLink, clearFailedLinks } from './services/queueService.js';
 import { listVideos, getVideo, listAvailable, listChannels, listVideosByChannel, channelKey } from './services/videoService.js';
@@ -80,6 +83,7 @@ registerJobHandler('enrichSource', enrichSourceJob);
 registerJobHandler('addSource', addSourceJob);
 registerJobHandler('addVideo', addVideoJob);
 registerJobHandler('syncSource', syncSourceJob);
+registerJobHandler('updateMetadata', updateMetadataJob);
 // M85 — il link incollato nel Download rapido: risoluzione + download in un job
 // solo, così ogni link occupa un posto del pool e `jobs.parallel` conta davvero.
 // Interrompibile come gli altri due job di download vero.
@@ -111,6 +115,15 @@ export {
   listSources,
   // regole per fonte (controllo automatico, scaricamento automatico, qualità)
   setSourceRules,
+  // wizard dei metadati: revisioni, modifiche a mano, blocchi, cronologia
+  listPendingReviews,
+  resolveReview,
+  setVideoField,
+  setFieldLock,
+  restoreHistoryEntry,
+  FIELD_NAMES,
+  DEFAULT_FIELD_RULES,
+  EDITABLE_FIELDS,
   CHECK_INTERVALS,
   addSource,
   removeSource,

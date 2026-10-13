@@ -218,8 +218,13 @@ export function summarizeFormats(info) {
 // sua copertina anche quando l'URL YouTube muore. Ritorna i campi curati mappati
 // (compreso `thumbnail`); il chiamante scarta l'oggetto `video` (nessun file
 // scaricato) e fonde il resto nella entry di catalogo.
-export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}) {
+// outDir: dove scrivere info.json e copertina. Di default la cartella delle
+// copertine (la nuova sostituisce la vecchia); il wizard dei metadati passa una
+// cartella di lavoro, così può confrontare la copertina nuova con quella
+// attuale prima di decidere se tenerla.
+export async function fetchVideoMetadata(videoId, url, { onLog = () => {}, outDir = null } = {}) {
   const paths = getPaths();
+  const dir = outDir ?? paths.thumbnailsDir;
   const args = [
     ...JS_RUNTIME_ARGS,
     ...PLAYER_CLIENT_ARGS,
@@ -229,7 +234,7 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}
     '--convert-thumbnails', 'jpg',
     // info.json e thumbnail finiscono entrambi in media/thumbnails/<id>.*; il
     // sidecar .info.json viene poi consolidato nei metadati del catalogo e cancellato.
-    '-o', path.join(paths.thumbnailsDir, '%(id)s.%(ext)s')
+    '-o', path.join(dir, '%(id)s.%(ext)s')
   ];
   if (paths.ffmpegLocation) args.push('--ffmpeg-location', paths.ffmpegLocation);
   // I cookie qui sono innocui: l'estrazione dei soli metadati non scarica i byte
@@ -240,7 +245,7 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}
 
   await runYtdlp(paths, args, { onLog, onProgress: () => {} });
 
-  const infoPath = path.join(paths.thumbnailsDir, `${videoId}.info.json`);
+  const infoPath = path.join(dir, `${videoId}.info.json`);
   if (!existsSync(infoPath)) {
     throw new Error(`Metadati non trovati dopo l'estrazione per ${videoId}`);
   }
@@ -248,14 +253,14 @@ export async function fetchVideoMetadata(videoId, url, { onLog = () => {} } = {}
 
   // Pulisce eventuali thumbnail intermedie (es. .webp prima della conversione a
   // jpg) per non lasciare orfani accanto alla copertina definitiva.
-  if (existsSync(paths.thumbnailsDir)) {
-    for (const f of readdirSync(paths.thumbnailsDir)) {
+  if (existsSync(dir)) {
+    for (const f of readdirSync(dir)) {
       if (f.startsWith(`${videoId}.`) && !f.endsWith('.jpg') && !f.endsWith('.info.json')) {
-        unlinkSync(path.join(paths.thumbnailsDir, f));
+        unlinkSync(path.join(dir, f));
       }
     }
   }
-  const thumbnailFile = existsSync(path.join(paths.thumbnailsDir, `${videoId}.jpg`)) ? `${videoId}.jpg` : null;
+  const thumbnailFile = existsSync(path.join(dir, `${videoId}.jpg`)) ? `${videoId}.jpg` : null;
 
   const fields = mapInfoJsonToVideoFields(info, { videoFile: null, thumbnailFile, sizeBytes: null, sha256: null, ytdlpVersion: null });
   await consolidateMetadata(videoId, info, infoPath);
