@@ -1,0 +1,16 @@
+{
+  "name": "vod-stream",
+  "version": "1.0.0",
+  "description": "Riproduzione di video su qualunque dispositivo: file originale quando il browser lo legge, altrimenti HLS adattivo convertito al volo da ffmpeg, a segmenti su richiesta.",
+  "type": "module",
+  "exports": {
+    ".": "./src/server/index.js",
+    "./client": "./src/client/index.js"
+  },
+  "files": ["src", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

@@ -1,6 +1,21 @@
 import express from 'express';
+import os from 'node:os';
 import path from 'node:path';
-import { getPaths, ensureHlsStream, touchHlsStream } from '@catalog/core';
+import { existsSync } from 'node:fs';
+import { getPaths, getVideo, expectedToolNames, scratchRoot } from '@catalog/core';
+import { createVodStream } from 'vod-stream';
+
+// I binari di ffmpeg/ffprobe con la stessa precedenza del resto del core:
+// quelli in tools/ (o nell'immagine Docker), altrimenti il PATH.
+function tool(name) {
+  const { ffmpegLocation } = getPaths();
+  const bin = expectedToolNames()[name];
+  if (ffmpegLocation) {
+    const candidate = path.join(ffmpegLocation, bin);
+    if (existsSync(candidate)) return candidate;
+  }
+  return bin;
+}
 
 // express.static (pacchetto "send" sotto il cofano) supporta già Range
 // requests/ETag out of the box — necessario per il seek nel player <video>.
@@ -10,30 +25,23 @@ export function mountMediaRoutes(app) {
   app.use('/media/thumbnails', express.static(paths.thumbnailsDir));
   app.use('/media/avatars', express.static(paths.avatarsDir));
 
-  // Versione HLS convertita al volo, per chi il file così com'è non lo legge
-  // (iPhone/Safari: vedi streamService.js nel core). La playlist avvia la
-  // conversione e risponde appena c'è il primo segmento; è di tipo EVENT, quindi
-  // Safari la richiede di nuovo man mano e vede crescere il video. Mai in cache:
-  // cambia finché la conversione non finisce.
-  app.get('/media/hls/:id/index.m3u8', async (req, res) => {
-    try {
-      const dir = await ensureHlsStream(req.params.id);
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(path.join(dir, 'index.m3u8'));
-    } catch (err) {
-      res.status(500).type('text/plain').send(err.message);
-    }
+  // Riproduzione su qualunque dispositivo (packages/vod-stream): il browser
+  // chiede /media/stream/<id>/info.json e usa il file qui sopra se sa leggerlo,
+  // altrimenti l'HLS adattivo convertito al volo da qui. I segmenti vanno
+  // nell'area di lavoro locale (svuotata a ogni avvio), mai sul NAS.
+  const vod = createVodStream({
+    resolveFile: async (id) => {
+      try {
+        const video = await getVideo(id);
+        return video.video?.localPath ? path.join(getPaths().videosDir, video.video.localPath) : null;
+      } catch {
+        return null;
+      }
+    },
+    cacheDir: path.join(scratchRoot() ?? path.join(os.tmpdir(), 'ondo'), 'stream'),
+    ffmpegPath: tool('ffmpeg'),
+    ffprobePath: tool('ffprobe'),
+    log: (m) => console.log(m)
   });
-
-  // I segmenti: solo nomi prodotti da ffmpeg (niente percorsi arbitrari).
-  app.get('/media/hls/:id/:segment', (req, res) => {
-    const { id, segment } = req.params;
-    const dir = /^seg\d{5}\.ts$/.test(segment) ? touchHlsStream(id) : null;
-    if (!dir) return res.sendStatus(404);
-    res.setHeader('Content-Type', 'video/mp2t');
-    res.sendFile(path.join(dir, segment), (err) => {
-      if (err && !res.headersSent) res.sendStatus(404);
-    });
-  });
+  app.use('/media/stream', vod.handler);
 }

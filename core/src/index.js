@@ -18,7 +18,6 @@ import { reorganizeLibrary, deleteVideoFile, deleteVideoCompletely, removeVideoF
 import { syncChannelAvatars, getChannelAvatarMap } from './services/channelAvatarService.js';
 import { createBackup, restoreBackup } from './services/backupService.js';
 import { startBackupScheduler } from './services/backupScheduler.js';
-import { getPlaybackInfo, ensureHlsStream, touchHlsStream } from './services/streamService.js';
 import { clearScratch, scratchRoot } from './lib/scratch.js';
 import { getDb } from './catalog/db.js';
 import { mergeLibrary } from './services/mergeService.js';
@@ -198,11 +197,6 @@ export {
   restoreBackup,
   // apre il catalogo all'avvio (vedi openCatalog sopra)
   openCatalog,
-  // riproduzione sui dispositivi che non leggono il file (iPhone): tipo del
-  // file per canPlayType e conversione HLS al volo
-  getPlaybackInfo,
-  ensureHlsStream,
-  touchHlsStream,
   // backup periodico in ONDO_BACKUP_DIR (solo server)
   startBackupScheduler,
   // area di lavoro locale dei download (ONDO_SCRATCH_DIR)

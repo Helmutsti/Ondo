@@ -26,9 +26,6 @@ function qs(params = {}) {
 
 export const listVideos = () => request('/api/videos');
 export const getVideo = (id) => request(`/api/videos/${encodeURIComponent(id)}`);
-// Tipo esatto del file (per canPlayType) e indirizzo della versione HLS
-// convertita al volo, per chi il file così com'è non lo legge (iPhone).
-export const getPlayback = (id) => request(`/api/videos/${encodeURIComponent(id)}/playback`);
 // Nasconde/mostra un video (asse `hidden` del modello a flag, M25).
 export const setHidden = (id, hidden) =>
   request(`/api/videos/${encodeURIComponent(id)}/hidden`, { method: 'POST', body: JSON.stringify({ hidden }) });

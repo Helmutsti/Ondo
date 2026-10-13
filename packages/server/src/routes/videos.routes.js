@@ -16,8 +16,7 @@ import {
   analyzeVideoDownload,
   triggerJob,
   syncChannelAvatars,
-  getChannelAvatarMap,
-  getPlaybackInfo
+  getChannelAvatarMap
 } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
 import { toPublicVideo } from '../lib/publicVideo.js';
@@ -133,14 +132,6 @@ videosRouter.get('/channels/:key/videos', asyncRoute(async (req, res) => {
 videosRouter.get('/videos/:id', asyncRoute(async (req, res) => {
   const [video, avatars] = await Promise.all([getVideo(req.params.id), getChannelAvatarMap()]);
   res.json(toPublicVideo(video, avatars));
-}));
-
-// Tipo esatto del file (contenitore + codec, per canPlayType nel browser) e
-// indirizzo della versione convertita al volo, per i dispositivi che il file
-// così com'è non lo leggono (iPhone/Safari: vedi streamService.js nel core).
-videosRouter.get('/videos/:id/playback', asyncRoute(async (req, res) => {
-  const info = await getPlaybackInfo(req.params.id);
-  res.json({ ...info, hlsUrl: `/media/hls/${encodeURIComponent(req.params.id)}/index.m3u8` });
 }));
 
 videosRouter.get('/videos/:id/metadata', asyncRoute(async (req, res) => {

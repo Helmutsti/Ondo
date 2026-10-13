@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@catalog/core": "*",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "vod-stream": "*"
   }
 }

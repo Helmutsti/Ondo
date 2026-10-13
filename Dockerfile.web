@@ -115,6 +115,7 @@ COPY core/package.json ./core/
 COPY packages/ondo-cli/package.json ./packages/ondo-cli/
 COPY packages/server/package.json ./packages/server/
 COPY packages/web/package.json ./packages/web/
+COPY packages/vod-stream/package.json ./packages/vod-stream/
 RUN npm ci
 
 # Sorgenti e build della sola web (produce packages/web/dist).
@@ -173,6 +174,10 @@ WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/core ./core
 COPY --from=builder /app/packages/server ./packages/server
+# vod-stream (riproduzione su qualunque dispositivo, conversione HLS al volo):
+# in node_modules c'è solo il link al workspace, il pacchetto vero sta qui.
+COPY --from=builder /app/packages/vod-stream/package.json ./packages/vod-stream/package.json
+COPY --from=builder /app/packages/vod-stream/src ./packages/vod-stream/src
 COPY --from=builder /app/packages/web/dist ./packages/web/dist
 
 # L'API ascolta sulla porta di config/web.json (default 3001).

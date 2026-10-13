@@ -596,6 +596,32 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   background: var(--accent); border-color: var(--accent); transform: scale(1.08);
 }
 
+/* Animazione di caricamento sul player: all'avvio, dopo un salto, quando la
+   rete o la conversione al volo non tengono il passo (watchBuffering di
+   vod-stream). Compare con un breve ritardo — le attese di pochi millisecondi
+   non devono far lampeggiare niente — e non intercetta i tocchi: i controlli
+   del <video> sotto restano usabili. */
+.player-buffering {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0,0,0,.45) 0, rgba(0,0,0,0) 70%);
+  opacity: 0; animation: buffering-in .2s ease .25s forwards;
+}
+.player-buffering-ring {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 3.5px solid rgba(255,255,255,.22);
+  border-top-color: var(--accent);
+  border-right-color: var(--accent);
+  animation: spin .75s linear infinite;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+}
+.mini-float-home .player-buffering-ring { width: 34px; height: 34px; border-width: 3px; }
+@keyframes buffering-in { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .player-buffering-ring { animation-duration: 1.6s; }
+}
+
 /* ===== Mini-player persistente (M54) ===== */
 /* Slot di aggancio nella pagina di dettaglio: riempie il .player-frame. Il vero
    <video> (nodo .global-player, montato da MiniPlayer sopra il router) viene

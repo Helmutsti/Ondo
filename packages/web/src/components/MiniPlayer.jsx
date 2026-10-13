@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { X, Maximize2, Play } from 'lucide-react';
@@ -7,7 +7,8 @@ import {
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
 } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
-import { usePlaybackSource } from '../hooks/usePlaybackSource.js';
+import { attachVideo, watchBuffering } from 'vod-stream/client';
+import { apiUrl } from '../lib/apiBase.js';
 
 // Mini-player desktop-only (scelta di scope M54): su schermo piccolo vale il
 // comportamento attuale (il video si ferma al cambio pagina), così non resta
@@ -37,8 +38,7 @@ export function MiniPlayer() {
   const location = useLocation();
   const navigate = useNavigate();
   const goToNext = useQueueAdvance();
-  // Il file così com'è o la sua versione HLS convertita (iPhone/Safari).
-  const playback = usePlaybackSource(current);
+  const [buffering, setBuffering] = useState(false);
   const videoRef = useRef(null);
   const floatHomeRef = useRef(null);
 
@@ -136,6 +136,37 @@ export function MiniPlayer() {
   // cambio di id (a quel punto videoRef.current è ancora null e il play andava
   // perso). Perciò si (ri)tenta qui (cambio id, se l'elemento c'è già) e sugli
   // eventi loadedmetadata/canplay dell'elemento (vedi il <video> sotto).
+  // Sorgente del <video> (packages/vod-stream): il file originale se questo
+  // browser lo sa leggere, altrimenti l'HLS adattivo convertito al volo dal
+  // server — che parte in 360p e sale da solo, e permette di saltare ovunque.
+  // hls.js si scarica solo dove HLS non è nativo e il file non va (Safari e
+  // iPhone hanno HLS nativo). Si ricollega a ogni cambio di video.
+  const videoId = current?.id ?? null;
+  const directUrl = current?.videoUrl ?? null;
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoId || !directUrl) return undefined;
+    let player = null;
+    let cancelled = false;
+    // Animazione di caricamento: all'avvio, dopo un salto, quando la rete o la
+    // conversione non tengono il passo. Mai in pausa.
+    const stopWatching = watchBuffering(el, setBuffering);
+    attachVideo(el, {
+      infoUrl: apiUrl(`/media/stream/${encodeURIComponent(videoId)}/info.json`),
+      directUrl,
+      loadHls: () => import('hls.js').then((m) => m.default)
+    }).then((p) => {
+      if (cancelled) p.destroy();
+      else { player = p; attemptAutoplay(); }
+    });
+    return () => {
+      cancelled = true;
+      stopWatching();
+      setBuffering(false);
+      player?.destroy();
+    };
+  }, [videoId, directUrl, shouldShow]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const attemptAutoplay = () => {
     if (current && getPendingPlay() === current.id) {
       videoRef.current?.play().catch(() => {});
@@ -175,8 +206,6 @@ export function MiniPlayer() {
         controls
         playsInline
         preload="metadata"
-        src={playback.src || undefined}
-        onError={playback.onError}
         poster={current.thumbnailUrl || undefined}
         onLoadedMetadata={attemptAutoplay}
         onCanPlay={attemptAutoplay}
@@ -184,6 +213,11 @@ export function MiniPlayer() {
         onPause={() => setPlaying(false)}
         onEnded={handleEnded}
       />
+      {buffering && (docked ? started : true) && (
+        <div className="player-buffering" aria-label="Caricamento" role="status">
+          <span className="player-buffering-ring" />
+        </div>
+      )}
       {docked && !started && (
         <button className="player-cover" onClick={() => videoRef.current?.play()} aria-label="Riproduci">
           {current.thumbnailUrl && <img src={current.thumbnailUrl} alt="" />}
