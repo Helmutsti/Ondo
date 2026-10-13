@@ -66,7 +66,7 @@ export async function enrichSourceJob(params, { log, progress }) {
   let done = 0;
   const step = () => { done += 1; progress(Math.round((done / Math.max(total, 1)) * 100)); };
   const breaker = createBreaker(log);
-  const verified = { present: 0, restored: 0, removed: 0, strike: 0, restricted: 0, unchanged: 0 };
+  const verified = { present: 0, restored: 0, removed: 0, confirmed: 0, strike: 0, restricted: 0, unchanged: 0 };
 
   // --- 1. Verifica di presenza
   if (toVerify.length > 0) {
@@ -81,12 +81,13 @@ export async function enrichSourceJob(params, { log, progress }) {
       else breaker.success();
       const label = video.title ?? video.id;
       if (outcome === 'removed') log(`⊘ ${label}: ${classification.hint}`);
+      else if (outcome === 'confirmed') log(`⊘ ${label}: confermato — ${classification.hint}`);
       else if (outcome === 'restored') log(`↺ ${label}: è di nuovo disponibile.`);
       else if (outcome === 'strike') log(`? ${label}: YouTube lo dà non disponibile, lo ricontrollerò più avanti prima di decidere.`);
       else if (outcome === 'restricted') log(`◐ ${label}: ${classification.hint}`);
       else if (outcome === 'unchanged') log(`✘ ${label}: verifica non riuscita, stato invariato — ${classification.hint}`);
     }
-    log(`Verifica: ${verified.present} presenti, ${verified.restored} tornati disponibili, ${verified.removed} spariti, ${verified.strike} da riconfermare, ${verified.restricted} ad accesso limitato, ${verified.unchanged} non verificati.`);
+    log(`Verifica: ${verified.present} presenti, ${verified.restored} tornati disponibili, ${verified.removed} spariti, ${verified.confirmed} confermati spariti, ${verified.strike} da riconfermare, ${verified.restricted} ad accesso limitato, ${verified.unchanged} non verificati.`);
   }
 
   // --- 2. Arricchimento

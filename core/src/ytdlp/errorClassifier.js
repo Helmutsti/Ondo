@@ -106,12 +106,27 @@ function mainLine(text) {
   return line.length > 400 ? `${line.slice(0, 400)}…` : line;
 }
 
+// Esiti che yt-dlp dichiara sul singolo video nella riga "ERROR:". Valgono più
+// degli avvisi che la precedono: un "WARNING" su firme o runtime JS stampato
+// prima di "ERROR: … Private video" non deve trasformare la risposta (il video è
+// privato) in un problema della macchina che ferma tutta la verifica.
+const VERDICT_CATEGORIES = new Set([C.BLOCKED, C.PRIVATE, C.RESTRICTED, C.REMOVED, C.UNAVAILABLE]);
+
+function errorLines(text) {
+  return text.split('\n').filter((l) => /\bERROR:/.test(l)).join('\n');
+}
+
 /**
  * Classifica un errore (Error, stringa o qualunque cosa abbia `message`).
  * @returns {{ category: string, reason: string, hint: string, message: string }}
  */
 export function classifyYtdlpError(input) {
   const text = typeof input === 'string' ? input : String(input?.message ?? input ?? '');
+  const errors = errorLines(text);
+  if (errors) {
+    const rule = RULES.find((r) => VERDICT_CATEGORIES.has(r.category) && r.test.test(errors));
+    if (rule) return { category: rule.category, reason: rule.reason, hint: rule.hint, message: mainLine(text) };
+  }
   for (const rule of RULES) {
     if (rule.test.test(text)) {
       return { category: rule.category, reason: rule.reason, hint: rule.hint, message: mainLine(text) };

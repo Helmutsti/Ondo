@@ -46,6 +46,21 @@ for (const [line, expected] of CASES) {
   });
 }
 
+// Dal server (v2.7.1): un avviso sulle firme prima di "Private video" fermava
+// tutta la verifica come se yt-dlp fosse da aggiornare.
+test('la risposta nella riga ERROR vince sugli avvisi di contorno', () => {
+  const stderr = [
+    'yt-dlp terminato con codice 1: WARNING: [youtube] ys9abkJ2Zas: n challenge solving failed: Some formats may be missing. Please update yt-dlp',
+    'WARNING: [youtube] No supported JavaScript runtime could be found.',
+    'ERROR: [youtube] ys9abkJ2Zas: Private video'
+  ].join('\n');
+  assert.equal(classifyYtdlpError(new Error(stderr)).category, C.PRIVATE);
+});
+test('senza un esito sul video, l\'avviso di ambiente resta la causa', () => {
+  const stderr = 'WARNING: [youtube] abc: nsig extraction failed: Some formats may be missing\nERROR: [youtube] abc: Requested format is not available';
+  assert.equal(classifyYtdlpError(new Error(stderr)).category, C.ENVIRONMENT);
+});
+
 // Errori nostri, trovati nel catalogo vero.
 test('internal: info.json illeggibile', () => {
   assert.equal(classifyYtdlpError('Unexpected token \'\x00\', "\x00\x05\x16" is not valid JSON').category, C.INTERNAL);

@@ -22,6 +22,14 @@ test('privato → rimosso subito, con motivo', () => {
   assert.equal(v.removedReason, 'private');
 });
 
+test('già rimosso e riconfermato privato → "confirmed", non un controllo fallito', () => {
+  const v = video({ presence: 'removed', removedAt: '2026-01-01T00:00:00.000Z', removedReason: null });
+  assert.equal(applyRemoteVerdict(v, err('Private video')).outcome, 'confirmed');
+  assert.equal(v.removedReason, 'private');
+  assert.equal(v.removedAt, '2026-01-01T00:00:00.000Z');
+  assert.ok(v.presenceCheckedAt);
+});
+
 test('"Video unavailable" generico serve confermarlo a distanza di ore', () => {
   const t0 = new Date('2026-10-13T10:00:00Z');
   const v = video();

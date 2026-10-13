@@ -28,7 +28,9 @@ function markRemoved(video, reason, nowIso) {
   video.removedAt = wasRemoved && video.removedAt ? video.removedAt : nowIso;
   video.removedReason = reason;
   video.presenceCheckPending = false;
-  return wasRemoved ? 'unchanged' : 'removed';
+  // Già rimosso e riconfermato da YouTube: è una risposta, non un controllo
+  // fallito (prima finiva tra i "non verificati" e pesava sull'interruttore).
+  return wasRemoved ? 'confirmed' : 'removed';
 }
 
 function markPresent(video) {
@@ -49,7 +51,7 @@ function markPresent(video) {
  * @param options.isCheck true per un controllo di presenza (conta i tentativi
  *                        falliti); false per download/metadati, dove un errore
  *                        di rete non è un controllo mancato
- * @returns {{ outcome: string }} present | restored | removed | strike | restricted | stop | unchanged
+ * @returns {{ outcome: string }} present | restored | removed | confirmed | strike | restricted | stop | unchanged
  */
 export function applyRemoteVerdict(video, classification, { isCheck = true, now = new Date() } = {}) {
   const nowIso = now.toISOString();
