@@ -150,6 +150,13 @@ function reconcileOnLoad(cat) {
     // Reconciliation: un download interrotto a metà (processo morto durante
     // il download) va riportato a "none" e rifatto da zero al prossimo trigger
     // — SE il disco (sotto) non trova comunque un file completo per questo id.
+    // Un download interrotto a mano non è un fallimento: le versioni prima
+    // della v3.0.4 lo segnavano "failed" e finiva tra i Problemi.
+    if (video.download === DOWNLOAD_STATE.FAILED && /interrotto dall'utente/i.test(typeof video.error === 'object' ? video.error?.message ?? '' : video.error ?? '')) {
+      video.download = DOWNLOAD_STATE.NONE;
+      video.error = null;
+      changed = true;
+    }
     if (video.download === DOWNLOAD_STATE.DOWNLOADING) {
       video.download = DOWNLOAD_STATE.NONE;
       video.updatedAt = new Date().toISOString();

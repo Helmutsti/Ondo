@@ -31,6 +31,19 @@ export async function downloadSingleJob(params, { log, progress, signal }) {
 
     return { downloaded: 1, failed: 0 };
   } catch (err) {
+    // Interrotto da chi l'ha avviato: non è un fallimento. Il video torna
+    // "da scaricare" com'era, senza errore (prima finiva tra i Problemi come
+    // "errore non classificato").
+    if (signal?.aborted) {
+      await updateCatalog((cat) => {
+        const v = cat.videos[videoId];
+        if (!v) return;
+        if (v.download === DOWNLOAD_STATE.DOWNLOADING) v.download = DOWNLOAD_STATE.NONE;
+        v.updatedAt = new Date().toISOString();
+      });
+      log(`■ ${videoId}: download interrotto, il video torna da scaricare.`);
+      throw err;
+    }
     const { classification, outcome } = await recordDownloadFailure(videoId, err);
     if (outcome === 'removed') log(`⊘ ${videoId}: ${classification.hint}`);
     log(`✘ ${videoId} fallito [${classification.category}]: ${classification.hint} — ${classification.message}`);

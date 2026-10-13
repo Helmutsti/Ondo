@@ -84,6 +84,11 @@ const RULES = [
   // --- Download/formati: il video c'è.
   { category: C.FORMAT, reason: 'format', test: /requested format is not available|no video formats found|format(?:s)? (?:is |are )?not available/i,
     hint: 'La qualità scelta non è disponibile per questo video: prova una qualità diversa.' },
+  // 403 sulla LETTURA della pagina o dei metadati (prima ancora di scegliere
+  // un formato): è il sito che rifiuta la richiesta — tipicamente un filtro
+  // anti-bot (Rumble) — e la qualità non c'entra. Si riprova.
+  { category: C.NETWORK, reason: 'refused', test: /unable to download (?:json metadata|webpage|api page)[^\n]*(?:403|forbidden)/i,
+    hint: 'Il sito ha rifiutato la richiesta (403, filtro anti-bot): non dipende dalla qualità. Riprova, di solito passa.' },
   { category: C.FORMAT, reason: 'http-403', test: /http error 403|403: forbidden/i,
     hint: 'YouTube ha rifiutato il download (403): spesso si risolve con cookie aggiornati o riprovando più tardi.' },
   { category: C.FORMAT, reason: 'postprocessing', test: /ffmpeg|ffprobe|postprocess|merger|conversion failed/i,

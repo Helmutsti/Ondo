@@ -48,9 +48,10 @@ export function ActivityRow({ job, compact = false }) {
   const [busy, setBusy] = useState(false);
   const running = job.status === 'running';
   const queued = job.status === 'queued';
-  const failed = job.status === 'failed';
-  const Icon = running ? Download : queued ? Clock : failed ? CircleX : CircleCheck;
-  const iconCls = running ? 'run' : queued ? 'wait' : failed ? 'fail' : 'ok';
+  const cancelled = job.status === 'failed' && job.error?.category === 'cancelled';
+  const failed = job.status === 'failed' && !cancelled;
+  const Icon = running ? Download : queued || cancelled ? Clock : failed ? CircleX : CircleCheck;
+  const iconCls = running ? 'run' : queued || cancelled ? 'wait' : failed ? 'fail' : 'ok';
   const videoId = job.params?.videoId ?? job.note?.videoId ?? job.summary?.videoId ?? null;
 
   let sub = JOB_LABEL[job.type] ?? job.type;
@@ -59,6 +60,7 @@ export function ActivityRow({ job, compact = false }) {
   else if (running && job.note?.pausedUntil) sub += ` · in pausa, riprende alle ${new Date(job.note.pausedUntil).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
   else if (running && job.note?.counts) sub += ` · ${job.note.counts.done} di ${job.note.counts.total}${job.note.counts.review ? ` · ${job.note.counts.review} da rivedere` : ''}`;
   else if (running) sub += job.note?.phase === 'enriching' ? ' · verifica e metadati' : (job.lastLine ? ` · ${job.lastLine}` : '');
+  else if (cancelled) sub += ' · interrotto da te';
   else if (failed) sub += ` · ${job.error?.hint ?? job.error?.message ?? 'errore sconosciuto'}`;
   else if (outcome(job)) sub += ` · ${outcome(job)}`;
 

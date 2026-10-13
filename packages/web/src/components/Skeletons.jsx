@@ -34,13 +34,12 @@ export function SkeletonRows({ count = 8, className = 'list' }) {
 
 export function SkeletonProfiles({ count = 8 }) {
   return (
-    <div className="profile-grid" aria-busy="true">
+    <div className="creator-grid" aria-busy="true">
       <span className="sr-only">Caricamento…</span>
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="profile-card skeleton" aria-hidden="true">
-          <span className="sk sk-circle" />
-          <span className="sk sk-line" style={{ width: '60%' }} />
-          <span className="sk sk-line tiny" style={{ width: '40%' }} />
+        <div key={i} className="creator-tile skeleton" aria-hidden="true">
+          <span className="sk creator-photo" />
+          <div className="creator-stats"><span className="sk sk-line tiny" /><span className="sk sk-line tiny" /><span className="sk sk-line tiny" /></div>
         </div>
       ))}
     </div>

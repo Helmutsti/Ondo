@@ -26,7 +26,7 @@ export function ActivityIndicator() {
   const running = active.filter((j) => j.status === 'running');
   const withPct = running.filter((j) => j.progress != null);
   const avg = withPct.length ? withPct.reduce((n, j) => n + j.progress, 0) / withPct.length : null;
-  const failedRecent = (data?.finished ?? []).filter((j) => j.status === 'failed').slice(0, 3);
+  const failedRecent = (data?.finished ?? []).filter((j) => j.status === 'failed' && j.error?.category !== 'cancelled').slice(0, 3);
   const block = recentBlock(data);
   const recent = (data?.finished ?? []).slice(0, 4);
 

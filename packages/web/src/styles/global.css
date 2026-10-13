@@ -1811,3 +1811,40 @@ a.profile-chip:hover { border-color: var(--border); }
 .card-row.skeleton { pointer-events: none; }
 .card-row.skeleton .row-body { gap: 8px; }
 .profile-card.skeleton { gap: 8px; pointer-events: none; }
+
+/* ===== Card creator con la foto in primo piano ===== */
+.creator-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
+.creator-tile {
+  display: flex; flex-direction: column; overflow: hidden; color: inherit; text-decoration: none;
+  border-radius: 16px; background: var(--panel); border: 1px solid var(--border);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.creator-tile:hover { transform: translateY(-2px); border-color: #3a3a42; box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+.creator-tile.pinned { border-color: color-mix(in oklch, var(--accent) 55%, var(--border)); }
+.creator-photo { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: #2a2226; display: block; }
+.creator-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
+.creator-tile:hover .creator-photo img { transform: scale(1.04); }
+.creator-initial { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Sora', system-ui, sans-serif; font-size: 72px; font-weight: 700; color: rgba(255,255,255,.85); }
+.creator-caption {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 14px 12px;
+  background: linear-gradient(transparent, rgba(8,8,10,.55) 35%, rgba(8,8,10,.92));
+}
+.creator-name { font-family: 'Sora', system-ui, sans-serif; font-size: 16px; font-weight: 700; color: #fff; line-height: 1.25; overflow-wrap: anywhere; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.creator-meta { margin-top: 3px; font-size: 11.5px; color: rgba(255,255,255,.72); }
+.creator-photo .profile-pin { top: 10px; right: 10px; width: 30px; height: 30px; z-index: 2; color: #fff; background: rgba(8,8,10,.45); backdrop-filter: blur(6px); opacity: 0; transition: opacity .15s; }
+.creator-tile:hover .profile-pin, .creator-photo .profile-pin.active, .creator-photo .profile-pin:focus-visible { opacity: 1; }
+.creator-photo .profile-pin.active { color: var(--accent-ink); }
+@media (hover: none) { .creator-photo .profile-pin { opacity: 1; } }
+.creator-stats { display: flex; justify-content: space-between; padding: 11px 14px 12px; }
+.creator-stats span { display: flex; flex-direction: column; font-size: 10.5px; color: var(--faint); }
+.creator-stats b { font-size: 15px; color: var(--ink); font-weight: 600; }
+.creator-stats .warn b { color: oklch(0.80 0.14 65); }
+.creator-tile.skeleton { pointer-events: none; }
+.creator-tile.skeleton .creator-stats { gap: 10px; }
+@media (max-width: 640px) {
+  .creator-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .creator-name { font-size: 14px; }
+  .creator-initial { font-size: 52px; }
+  .creator-stats { padding: 9px 10px 10px; }
+  .creator-stats b { font-size: 13.5px; }
+}

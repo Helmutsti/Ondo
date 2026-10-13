@@ -54,8 +54,9 @@ export function ActivityPage() {
     return {
       running: active.filter((j) => j.status === 'running'),
       queued: active.filter((j) => j.status === 'queued').sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0)),
-      failed: finished.filter((j) => j.status === 'failed'),
-      done: finished.filter((j) => j.status === 'success' && (j.finishedAt ?? '') >= today)
+      // Un lavoro interrotto da te non è un problema: sta con i completati.
+      failed: finished.filter((j) => j.status === 'failed' && j.error?.category !== 'cancelled'),
+      done: finished.filter((j) => (j.status === 'success' || j.error?.category === 'cancelled') && (j.finishedAt ?? '') >= today)
     };
   }, [data]);
   const block = recentBlock(data);

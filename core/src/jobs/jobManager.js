@@ -449,7 +449,9 @@ async function runJob(nextId) {
     job.status = 'failed';
     // Con la categoria (dal classificatore, o già decisa dall'handler): la UI
     // raggruppa i problemi per causa e non mostra mai un "Errore" senza motivo.
-    const c = err.classification ?? classifyYtdlpError(err);
+    const c = controller?.signal.aborted
+      ? { category: 'cancelled', reason: 'cancelled', hint: 'Interrotto da te.' }
+      : (err.classification ?? classifyYtdlpError(err));
     job.error = { message: err.message, category: c.category, reason: c.reason, hint: c.hint };
     // Un blocco di YouTube mette in pausa i controlli automatici, con attesa
     // crescente (blockState). Non se il job l'ha già registrato da sé.

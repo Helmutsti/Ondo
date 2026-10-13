@@ -25,8 +25,12 @@ const CASES = [
   // Solo "Video unavailable": ambiguo, non definitivo.
   ['ERROR: [youtube] abc: Video unavailable', C.UNAVAILABLE],
   ['ERROR: [youtube] abc: Requested format is not available. Use --list-formats for a list of available formats', C.FORMAT],
-  // Dal catalogo vero: 403 su Rumble.
-  ['ERROR: [RumbleEmbed] v2o7iex: Unable to download JSON metadata: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)', C.FORMAT],
+  // Dal catalogo vero: 403 su Rumble alla lettura dei metadati → rifiuto del
+  // sito (anti-bot), non un problema di formato o di qualità.
+  ['ERROR: [RumbleEmbed] v2o7iex: Unable to download JSON metadata: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)', C.NETWORK],
+  // 403 durante il download dei frammenti: quello sì, legato ai formati.
+  ['ERROR: unable to download video data: HTTP Error 403: Forbidden', C.FORMAT],
+  ['ERROR: fragment 1 not found, unable to continue: HTTP Error 403: Forbidden', C.FORMAT],
   ['ERROR: Postprocessing: ffmpeg exited with code 1', C.FORMAT],
   ['ERROR: [youtube] abc: Unable to download webpage: <urlopen error [Errno -3] Temporary failure in name resolution>', C.NETWORK],
   ['ERROR: Unable to download webpage: The read operation timed out', C.NETWORK],

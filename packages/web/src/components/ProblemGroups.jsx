@@ -10,7 +10,7 @@ const GROUPS = {
   blocked: { title: (n) => `${n} bloccati da YouTube (anti-bot o troppe richieste)`, desc: 'Non è un problema dei video: YouTube sta frenando le richieste. Riprova più tardi, o carica cookie aggiornati.', tone: 'accent', actions: ['cookies', 'retry'] },
   restricted: { title: (n) => `${n} con accesso limitato`, desc: 'Limite d\'età, video per i membri o non disponibile nel tuo paese: servono i cookie di un account che possa vederli.', tone: 'warn', actions: ['cookies'] },
   format: { title: (n) => `${n} con formato non disponibile`, desc: 'La qualità scelta non esiste per questi video, o YouTube ha rifiutato i frammenti (403).', tone: 'err', actions: ['best'] },
-  network: { title: (n) => `${n} per problemi di rete`, desc: 'YouTube non era raggiungibile in quel momento.', tone: 'err', actions: ['retry'] },
+  network: { title: (n) => `${n} non raggiunti o rifiutati dal sito`, desc: 'Il sito non ha risposto, o ha rifiutato la richiesta con il suo filtro anti-bot (403). Non dipende dalla qualità: di solito riprovando passa.', tone: 'err', actions: ['retry'] },
   environment: { title: (n) => `${n} per un problema della macchina`, desc: null, tone: 'err', actions: ['retry'] },
   internal: { title: (n) => `${n} per un errore interno di Ondo`, desc: 'Errore nel leggere i file prodotti da yt-dlp.', tone: 'err', actions: ['retry'] },
   gone: { title: (n) => `${n} non più su YouTube`, desc: 'Privati, rimossi o non disponibili: non c\'è più niente da scaricare.', tone: 'muted', actions: [] },
@@ -19,7 +19,12 @@ const GROUPS = {
 const ORDER = ['blocked', 'restricted', 'format', 'network', 'environment', 'internal', 'unknown', 'gone'];
 const GONE = new Set(['removed', 'private', 'unavailable']);
 
+// Errori salvati prima della v3.0.4: un 403 sulla lettura dei metadati
+// (Rumble) era finito tra i problemi di formato, ma la qualità non c'entra.
+const REFUSED = /unable to download (?:json metadata|webpage|api page)[^\n]*(?:403|forbidden)/i;
+
 function groupOf(video) {
+  if (typeof video.error === 'object' && REFUSED.test(video.error?.message ?? '')) return 'network';
   const c = typeof video.error === 'object' ? video.error?.category : null;
   if (!c) return 'unknown';
   if (GONE.has(c)) return 'gone';

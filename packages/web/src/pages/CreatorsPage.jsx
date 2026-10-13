@@ -31,25 +31,45 @@ function profileMeta(p) {
   return parts.join(' · ');
 }
 
+// Colore stabile ricavato dal nome, per i creator senza foto.
+function hueOf(name) {
+  let h = 0;
+  for (const ch of name ?? '') h = (h * 31 + ch.codePointAt(0)) % 360;
+  return h;
+}
+
+// Card creator con la foto in primo piano: l'immagine riempie la card,
+// nome e canali le stanno sopra su una sfumatura; sotto, i tre numeri.
 export function ProfileCard({ profile, onTogglePin }) {
+  const initial = profile.name?.trim()?.charAt(0)?.toUpperCase() || '?';
+  const hue = hueOf(profile.name);
   return (
-    <Link to={`/creators/${encodeURIComponent(profile.id)}`} className={`profile-card${profile.pinned ? ' pinned' : ''}`}>
-      <button
-        type="button"
-        className={`profile-pin${profile.pinned ? ' active' : ''}`}
-        title={profile.pinned ? 'Togli dalla sidebar' : 'Fissa in sidebar'}
-        aria-label={profile.pinned ? 'Togli dalla sidebar' : 'Fissa in sidebar'}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(profile); }}
+    <Link to={`/creators/${encodeURIComponent(profile.id)}`} className={`creator-tile${profile.pinned ? ' pinned' : ''}`}>
+      <div
+        className="creator-photo"
+        style={profile.avatarUrl ? undefined : { background: `linear-gradient(145deg, hsl(${hue} 32% 30%), hsl(${(hue + 40) % 360} 28% 16%))` }}
       >
-        <Pin size={14} fill={profile.pinned ? 'currentColor' : 'none'} />
-      </button>
-      <ProfileAvatar url={profile.avatarUrl} name={profile.name} className="profile-card-avatar" />
-      <div className="profile-card-name discreet-text">{profile.name}</div>
-      <div className="profile-card-meta">{profileMeta(profile)}</div>
-      <div className="profile-card-stats">
+        {profile.avatarUrl
+          ? <img src={profile.avatarUrl} alt="" loading="lazy" />
+          : <span className="creator-initial">{initial}</span>}
+        <button
+          type="button"
+          className={`profile-pin${profile.pinned ? ' active' : ''}`}
+          title={profile.pinned ? 'Togli dalla sidebar' : 'Fissa in sidebar'}
+          aria-label={profile.pinned ? 'Togli dalla sidebar' : 'Fissa in sidebar'}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(profile); }}
+        >
+          <Pin size={14} fill={profile.pinned ? 'currentColor' : 'none'} />
+        </button>
+        <div className="creator-caption">
+          <div className="creator-name discreet-text">{profile.name}</div>
+          <div className="creator-meta">{profileMeta(profile)}</div>
+        </div>
+      </div>
+      <div className="creator-stats">
         <span><b>{profile.videoCount}</b>video</span>
         <span><b>{profile.downloaded}</b>scaricati</span>
-        <span><b>{profile.removed}</b>spariti</span>
+        <span className={profile.removed ? 'warn' : ''}><b>{profile.removed}</b>spariti</span>
       </div>
     </Link>
   );
@@ -117,7 +137,7 @@ export function CreatorsPage() {
       {pinned.length > 0 && (
         <>
           <div className="section-label">Fissati in sidebar</div>
-          <div className="profile-grid">
+          <div className="creator-grid">
             {pinned.map((p) => <ProfileCard key={p.id} profile={p} onTogglePin={togglePin} />)}
           </div>
         </>
@@ -125,7 +145,7 @@ export function CreatorsPage() {
       {rest.length > 0 && (
         <>
           {pinned.length > 0 && <div className="section-label">Tutti</div>}
-          <div className="profile-grid">
+          <div className="creator-grid">
             {rest.map((p) => <ProfileCard key={p.id} profile={p} onTogglePin={togglePin} />)}
           </div>
         </>
