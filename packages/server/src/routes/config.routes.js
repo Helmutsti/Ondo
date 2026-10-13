@@ -39,7 +39,7 @@ configRouter.get(
   })
 );
 
-// Cookie YouTube (core/cookies.txt): corpo grezzo del file .txt esportato dal
+// Cookie YouTube (<config>/cookies.txt): corpo grezzo del file .txt esportato dal
 // browser (stesso pattern del ripristino backup — middleware raw a livello di
 // route). Nessun riavvio richiesto: il prossimo comando yt-dlp lo vede subito.
 configRouter.post(
