@@ -2,7 +2,7 @@ import express from 'express';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot, openCatalog, clearScratch, scratchRoot, startBackupScheduler } from '@catalog/core';
+import { loadAppConfig, setAppId, reportToolsOnStartup, setLockRole, isLibrary, initLibrary, libraryRoot, openCatalog, clearScratch, scratchRoot, startBackupScheduler, startSourceScheduler } from '@catalog/core';
 import { videosRouter } from './routes/videos.routes.js';
 import { sourcesRouter } from './routes/sources.routes.js';
 import { jobsRouter } from './routes/jobs.routes.js';
@@ -113,6 +113,7 @@ if (scratchRoot()) {
 
 // Backup periodico della libreria, se ONDO_BACKUP_DIR è impostata.
 startBackupScheduler();
+startSourceScheduler();
 
 const config = loadAppConfig();
 app.listen(config.port, host, () => {

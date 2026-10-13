@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, Rss, Plus, Menu, Settings, X, Users, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Rss, Plus, Menu, Settings, X, Users, ArrowRight, Activity } from 'lucide-react';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
 
 // Barra in basso su schermo stretto: le voci della sidebar desktop (Home ·
@@ -31,14 +31,14 @@ export function MobileNav({ profiles = [] }) {
     };
   }, [menuOpen]);
 
-  const inMenu = location.pathname === '/settings' || location.pathname.startsWith('/creators/') || location.pathname.startsWith('/channels/');
+  const inMenu = location.pathname === '/settings' || location.pathname === '/activity' || location.pathname.startsWith('/creators/') || location.pathname.startsWith('/channels/');
   const pinned = profiles.filter((p) => p.pinned);
 
   return (
     <>
       <nav className="mobile-nav">
         <NavLink to="/" end className={cls}><LayoutGrid size={20} /><span>Libreria</span></NavLink>
-        <NavLink to="/sources" className={cls}><Rss size={20} /><span>Sorgenti</span></NavLink>
+        <NavLink to="/sources" className={cls}><Rss size={20} /><span>Fonti</span></NavLink>
         {/* "+" porta al campo "Aggiungi" di Sorgenti, già attivo (vedi
             SourcesPage: location.state.focusAdd). */}
         <NavLink to="/sources" state={{ focusAdd: true }} className="plus" aria-label="Aggiungi playlist o video">
@@ -60,6 +60,9 @@ export function MobileNav({ profiles = [] }) {
               </button>
             </div>
             <div className="sheet-body">
+              <NavLink to="/activity" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
+                <Activity size={18} />Attività
+              </NavLink>
               <NavLink to="/settings" className={({ isActive }) => `side-item${isActive ? ' active' : ''}`}>
                 <Settings size={18} />Impostazioni
               </NavLink>

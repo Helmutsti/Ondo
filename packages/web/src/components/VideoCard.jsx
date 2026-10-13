@@ -6,6 +6,7 @@ import { formatDuration, videoDisplayDate, channelKey, channelInitial } from '..
 import { actionsFor } from '../lib/reviewActions.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { useActiveDownloadJobId } from '../lib/downloadTracker.js';
+import { useVideoActivity } from '../lib/activityStore.js';
 import { useJobStream } from '../hooks/useJobStream.js';
 import { addToQueue, removeFromQueue, useQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
@@ -37,13 +38,22 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
   const dur = formatDuration(video.durationSeconds);
   const date = videoDisplayDate(video);
   const actions = actionsFor(video);
-  const downloading = video.download === 'downloading';
+  // Il job del download secondo il server (vedi sotto): se sta girando la card
+  // è "in download" anche se l'elenco dei video non è stato ancora ricaricato.
+  const serverJob = useVideoActivity(video.id);
+  const downloading = video.download === 'downloading' || serverJob?.status === 'running';
   // jobId noto solo se il download è stato avviato da questa stessa sessione
   // (vedi lib/downloadTracker.js): se assente (pagina ricaricata a metà
   // download, o avviato altrove) niente percentuale reale, il cerchio ricade
   // su un'animazione indeterminata.
-  const activeJobId = useActiveDownloadJobId(video.id);
-  const { progress } = useJobStream(downloading ? activeJobId : null);
+  // Il job del download: quello avviato da questa scheda (stream dal vivo),
+  // altrimenti quello che riporta l'Attività del server — così il progresso
+  // c'è anche dopo un ricaricamento o per un download avviato altrove.
+  const trackedJobId = useActiveDownloadJobId(video.id);
+  const activeJobId = trackedJobId ?? (serverJob?.status === 'running' ? serverJob.jobId : null);
+  const live = useJobStream(downloading ? activeJobId : null);
+  const progress = live.progress ?? (downloading ? serverJob?.progress ?? null : null);
+  const queuePosition = serverJob?.status === 'queued' ? serverJob.queuePosition : null;
   // Archivia/Ripristina va in fondo al menu, separato dalle altre azioni.
   const archiveAction = actions.find((a) => a.kind === 'hide' || a.kind === 'unhide');
   const otherActions = actions.filter((a) => a.kind !== 'hide' && a.kind !== 'unhide');
@@ -101,12 +111,12 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
     onDecide(video.id, kind);
   }
 
-  const pill = coverState(video, { progress });
+  const pill = coverState(downloading ? { ...video, download: 'downloading' } : video, { progress, queuePosition });
   const PillIcon = pill ? PILL_ICON[pill.kind] : null;
   // Azione principale sulla copertina (card v2): niente più "apri il menu ⋮
   // per scaricare". Non sui persi (non c'è più niente da scaricare) né sui
   // nascosti, né mentre si seleziona.
-  const coverAction = selectMode || video.hidden || downloading ? null
+  const coverAction = selectMode || video.hidden || downloading || queuePosition != null ? null
     : video.download === 'failed' ? { label: 'Riprova', Icon: RotateCw, cls: 'retry' }
     : video.download === 'none' && video.presence === 'present' ? { label: 'Scarica', Icon: CloudDownload, cls: '' }
     : null;

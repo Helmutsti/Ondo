@@ -136,6 +136,8 @@ Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resour
 
 **Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Finiscono in `config\cookies.txt`, accanto alle impostazioni: sopravvivono agli aggiornamenti dell'immagine.
 
+**Controlli automatici delle fonti.** Ogni fonte si controlla da sola (di default ogni 6 ore): video nuovi, usciti dalla playlist, spariti da YouTube. Da **Fonti → Regole** cambi la frequenza, scegli la qualità e accendi lo scaricamento automatico dei video nuovi — spento di default, utile per una playlist usata come «da scaricare». I lavori in corso, in coda e falliti stanno in **Attività** (anche dall'indicatore in alto).
+
 **Creator con più canali.** In **Creator** ogni canale nasce come profilo a sé. Se una persona ha più canali, apri il suo profilo e usa «Unisci un altro canale»; dal menu ⋮ di un canale puoi separarlo di nuovo. La foto del profilo si sceglie cliccandola: quella di uno dei suoi canali (scaricata da YouTube solo quando lo chiedi) o un'immagine tua. In sidebar restano i creator che fissi.
 
 **Usare Ondo con qualcuno che guarda lo schermo.** In **Impostazioni → Modalità discreta** puoi sfocare le sole immagini (copertine, foto dei creator, player) oppure anche titoli e nomi. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta vale solo per il browser in cui la fai.

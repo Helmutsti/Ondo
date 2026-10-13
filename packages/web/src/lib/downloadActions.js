@@ -1,4 +1,5 @@
-import { getJob, listJobs, analyzeDownload, downloadVideoById, getConfig } from '../api/client.js';
+import { getJob, analyzeDownload, downloadVideoById, getConfig } from '../api/client.js';
+import { refreshActivity } from './activityStore.js';
 import { showToast, updateToast, dismissToast } from './toast.js';
 import { appNavigate } from './navigation.js';
 import { trackVideoDownload, untrackVideoDownload } from './downloadTracker.js';
@@ -166,6 +167,7 @@ export async function startDownload(videoId, { triggerJob, onSettled, title }) {
     // Da qui in poi la card del video (in qualunque griglia sia montata) può
     // agganciarsi al progresso reale via useJobStream(jobId).
     trackVideoDownload(videoId, jobId);
+    refreshActivity();
     const job = await waitForJobTerminal(jobId, onSettled);
     if (job.status === 'failed') {
       updateToast(toastId, { message: `${label}: download fallito (${job.error?.message ?? 'errore sconosciuto'})`, type: 'error' });
@@ -189,7 +191,7 @@ export async function startDownload(videoId, { triggerJob, onSettled, title }) {
 // segue il default del server.
 const BULK_HEIGHTS = [2160, 1440, 1080, 720, 480];
 
-export async function startBulkDownload(ids, { onSettled } = {}) {
+export async function startBulkDownload(ids, { onSettled, maxHeight: fixedHeight, askQuality = true } = {}) {
   if (!ids.length) return;
   let quality;
   try {
@@ -197,8 +199,10 @@ export async function startBulkDownload(ids, { onSettled } = {}) {
   } catch {
     quality = { kind: 'ask', height: null };
   }
-  let maxHeight; // undefined = default di config
-  if (quality.kind === 'ask') {
+  // fixedHeight: chi chiama ha già deciso (es. «Scarica alla migliore
+  // disponibile» dai Problemi: null = massima). Nessuna domanda.
+  let maxHeight = fixedHeight; // undefined = default di config
+  if (askQuality && fixedHeight === undefined && quality.kind === 'ask') {
     const picked = await radioDialog({
       title: `Scaricare ${ids.length} video`,
       message: 'A quale risoluzione massima? Per i video che non ci arrivano si prende la migliore disponibile.',
@@ -231,19 +235,21 @@ export async function startBulkDownload(ids, { onSettled } = {}) {
     type: 'info'
   }, 0);
   update();
-  // Un solo controllo dell'elenco dei job ogni 2 s per tutto il gruppo (non
-  // un polling per job: con 100 video sarebbero centinaia di richieste al secondo).
+  // Un solo controllo dell'Attività ogni 2 s per tutto il gruppo (non un
+  // polling per job: con 100 video sarebbero centinaia di richieste al
+  // secondo). L'Attività elenca TUTTI i job attivi, senza tetto.
   const pending = new Map(jobs.filter((j) => j.jobId).map((j) => [j.jobId, j.id]));
   while (pending.size > 0) {
     await new Promise((r) => setTimeout(r, 2000));
-    let list;
-    try { list = await listJobs(); } catch { continue; }
-    const byId = new Map(list.map((j) => [j.id, j]));
+    const data = await refreshActivity();
+    if (!data) continue;
+    const active = new Set(data.active.map((j) => j.id));
+    const finished = new Map(data.finished.map((j) => [j.id, j]));
     let changed = false;
     for (const [jobId, videoId] of [...pending]) {
-      const job = byId.get(jobId);
-      // Sparito dallo storico (cancellato a mano): lo si considera chiuso.
-      if (job && job.status !== 'success' && job.status !== 'failed' && job.status !== 'cancelled') continue;
+      if (active.has(jobId)) continue;
+      let job = finished.get(jobId);
+      if (!job) { try { job = await getJob(jobId); } catch { job = null; } }
       pending.delete(jobId);
       untrackVideoDownload(videoId);
       if (job?.status === 'success') done += 1; else failed += 1;

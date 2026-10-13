@@ -1,15 +1,18 @@
-import { registerJobHandler, triggerJob, getJob, listJobs, deleteJob, cancelJob, clearJobs, onJobLog, onJobStatus, onJobProgress, getPoolStatus, getJobParallelism, setJobParallelism, nudgeJobPool } from './jobs/jobManager.js';
+import { registerJobHandler, triggerJob, getJob, listJobs, listActivity, deleteJob, cancelJob, clearJobs, onJobLog, onJobStatus, onJobProgress, getPoolStatus, getJobParallelism, setJobParallelism, nudgeJobPool } from './jobs/jobManager.js';
 import { downloadPendingJob } from './jobs/jobs/downloadPending.js';
 import { downloadSingleJob } from './jobs/jobs/downloadSingle.js';
 import { enrichSourceJob } from './jobs/jobs/enrichSource.js';
 import { addSourceJob } from './jobs/jobs/addSource.js';
 import { addVideoJob } from './jobs/jobs/addVideo.js';
+import { syncSourceJob } from './jobs/jobs/syncSourceJob.js';
 import { quickDownloadJob } from './jobs/jobs/quickDownload.js';
 import { listQueue, enqueueLink, dequeueLink, clearFailedLinks } from './services/queueService.js';
 import { listVideos, getVideo, listAvailable, listChannels, listVideosByChannel, channelKey } from './services/videoService.js';
 import { videoCategory, VIDEO_CATEGORY, PRESENCE, DOWNLOAD_STATE } from './catalog/catalogSchema.js';
 import { syncSource } from './services/syncService.js';
-import { listSources, addSource, removeSource } from './services/sourceService.js';
+import { listSources, addSource, removeSource, setSourceRules } from './services/sourceService.js';
+import { startSourceScheduler } from './services/sourceScheduler.js';
+import { CHECK_INTERVALS } from './services/sourceRules.js';
 import { setVideoHidden, setVideoFavorite } from './services/decisionService.js';
 import { prepareSingleVideoDownload, analyzeVideoDownload } from './services/singleVideoService.js';
 import { getRawMetadata, refreshVideoMetadata } from './services/metadataService.js';
@@ -76,6 +79,7 @@ registerJobHandler('enrichSource', enrichSourceJob);
 // addVideo.js.
 registerJobHandler('addSource', addSourceJob);
 registerJobHandler('addVideo', addVideoJob);
+registerJobHandler('syncSource', syncSourceJob);
 // M85 — il link incollato nel Download rapido: risoluzione + download in un job
 // solo, così ogni link occupa un posto del pool e `jobs.parallel` conta davvero.
 // Interrompibile come gli altri due job di download vero.
@@ -105,6 +109,9 @@ export {
   DOWNLOAD_STATE,
   // fonti (sourcelist)
   listSources,
+  // regole per fonte (controllo automatico, scaricamento automatico, qualità)
+  setSourceRules,
+  CHECK_INTERVALS,
   addSource,
   removeSource,
   // sincronizzazione
@@ -117,6 +124,8 @@ export {
   triggerJob,
   getJob,
   listJobs,
+  // tutti i job attivi + i terminati da una data: la pagina Attività
+  listActivity,
   deleteJob,
   // interruzione manuale di un job running/queued (M51). Con il pool (M76)
   // diventa indispensabile: agisce su **un** job, non su tutti.
@@ -217,6 +226,8 @@ export {
   openCatalog,
   // backup periodico in ONDO_BACKUP_DIR (solo server)
   startBackupScheduler,
+  // controlli automatici delle fonti (solo server)
+  startSourceScheduler,
   // area di lavoro locale dei download (ONDO_SCRATCH_DIR)
   clearScratch,
   scratchRoot,

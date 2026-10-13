@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { getPaths } from '../config.js';
 import { loadAppConfig, updateAppConfig } from '../appConfig.js';
 import { acquireDataLock } from '../lock.js';
+import { classifyYtdlpError } from '../ytdlp/errorClassifier.js';
 
 const emitter = new EventEmitter();
 const jobs = new Map();
@@ -228,6 +229,23 @@ export function listJobs(limit = 50) {
     .slice(0, limit);
 }
 
+/**
+ * Il quadro per la pagina Attività: TUTTI i job in corso e in coda (niente
+ * tetto: con 100 download in coda servono tutti), più i terminati dal
+ * momento `since` in poi.
+ */
+export function listActivity({ since } = {}) {
+  ensureLoaded();
+  const all = [...jobs.values()];
+  const active = all.filter((j) => j.status === 'running' || j.status === 'queued');
+  const finished = all
+    .filter((j) => (j.status === 'success' || j.status === 'failed') && (!since || (j.finishedAt ?? '') >= since))
+    .sort((a, b) => (b.finishedAt || '').localeCompare(a.finishedAt || ''));
+  // Posizione in coda (1 = il prossimo a partire), come la vede l'utente.
+  const position = new Map(queue.map((id, i) => [id, i + 1]));
+  return { active: active.map((j) => ({ ...j, queuePosition: position.get(j.id) ?? null })), finished };
+}
+
 // Cancella un job dallo storico: rimuove solo il record (il video, i file su
 // disco e la voce di catalogo restano intatti). Un job `running`/`queued` non è
 // cancellabile — non esiste un meccanismo di abort, quindi cancellarne il record
@@ -370,7 +388,10 @@ async function runJob(nextId) {
     job.status = 'success';
   } catch (err) {
     job.status = 'failed';
-    job.error = { message: err.message };
+    // Con la categoria (dal classificatore, o già decisa dall'handler): la UI
+    // raggruppa i problemi per causa e non mostra mai un "Errore" senza motivo.
+    const c = err.classification ?? classifyYtdlpError(err);
+    job.error = { message: err.message, category: c.category, reason: c.reason, hint: c.hint };
     log(`✘ Job fallito: ${err.message}`);
   } finally {
     // **Esattamente un evento terminale per job**, `success` o `failed`, mai due

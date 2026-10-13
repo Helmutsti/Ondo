@@ -94,12 +94,20 @@ export const getProfileIdForChannel = (channelKey) =>
 export const listSources = () => request('/api/sources');
 export const addSource = (url) => request('/api/sources', { method: 'POST', body: JSON.stringify({ url }) });
 export const removeSource = (id) => request(`/api/sources/${encodeURIComponent(id)}`, { method: 'DELETE' });
+// Regole della fonte: { checkEvery, autoDownload, quality }; includeExisting
+// accoda anche i video già presenti e non scaricati.
+export const setSourceRules = (id, rules, includeExisting = false) =>
+  request(`/api/sources/${encodeURIComponent(id)}/rules`, { method: 'PATCH', body: JSON.stringify({ rules, includeExisting }) });
+// Un job di controllo per fonte (o per tutte): risponde con { jobs: [{ sourceId, jobId }] }.
 export const syncSources = (sourceId) =>
   request('/api/sync', { method: 'POST', body: JSON.stringify(sourceId ? { sourceId } : {}) });
 
 export const triggerJob = (type, params) =>
   request('/api/jobs', { method: 'POST', body: JSON.stringify({ type, params }) });
 export const listJobs = () => request('/api/jobs');
+// Attività: tutti i job attivi + i terminati delle ultime 24 ore, e il job di
+// download di ogni video (per il progresso sulle card anche dopo un refresh).
+export const getActivity = () => request('/api/activity');
 export const getJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`);
 export const deleteJob = (id) => request(`/api/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' });
 // Interruzione manuale di un job running/queued (M51): solo downloadSingle/downloadPending la supportano.

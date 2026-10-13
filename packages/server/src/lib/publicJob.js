@@ -45,6 +45,11 @@ export async function toPublicJob(job) {
     };
   }
 
+  // Controllo di una fonte: il nome lo scrive l'handler nella nota appena parte.
+  if (job.type === 'syncSource') {
+    return { ...job, thumbnails: [], thumbnailsMore: 0, title: job.note?.sourceName ?? null };
+  }
+
   if (job.type === 'addSource' && job.summary?.name) {
     return { ...job, thumbnails: [], thumbnailsMore: 0, title: job.summary.name };
   }

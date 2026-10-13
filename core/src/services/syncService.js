@@ -80,6 +80,9 @@ function sourceLink(video, sourceMeta) {
 // video preesistente della fonte, quindi le assenze lì non contano).
 export function ingestPlaylistEntries(catalog, sourceMeta, entries, paths, { applyAbsence = true } = {}) {
   let newCount = 0;
+  // Gli id appena entrati: servono allo scaricamento automatico della fonte,
+  // che deve toccare SOLO i video arrivati con questo controllo.
+  const newIds = [];
   let healedCount = 0;
   let leftCount = 0;
   let rejoinedCount = 0;
@@ -113,6 +116,7 @@ export function ingestPlaylistEntries(catalog, sourceMeta, entries, paths, { app
         sourceId: sourceMeta.id
       });
       newCount += 1;
+      newIds.push(entry.id);
       continue;
     }
 
@@ -173,7 +177,7 @@ export function ingestPlaylistEntries(catalog, sourceMeta, entries, paths, { app
     }
   }
 
-  return { newCount, healedCount, leftCount, rejoinedCount, toVerifyCount, placeholderCount };
+  return { newCount, newIds, healedCount, leftCount, rejoinedCount, toVerifyCount, placeholderCount };
 }
 
 // Copertura dell'enumerazione (backlog #4): confronta i video realmente

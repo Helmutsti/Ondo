@@ -44,9 +44,13 @@ export function leftAllSources(v) {
 
 // Stato mostrato sulla copertina (pillola). null = nessuna pillola: un video
 // scaricato e ancora su YouTube è lo stato normale.
-export function coverState(video, { progress } = {}) {
+export function coverState(video, { progress, queuePosition } = {}) {
   if (video.download === 'downloading') {
     return { kind: 'downloading', label: progress != null ? `${Math.round(progress)}%` : 'In download' };
+  }
+  // In coda (download avviato, non ancora partito): lo dice l'Attività.
+  if (queuePosition != null && video.download !== 'downloaded') {
+    return { kind: 'downloading', label: `In coda (${queuePosition}°)` };
   }
   if (video.download === 'failed') return { kind: 'failed', label: 'Errore' };
   if (isSaved(video)) return { kind: 'saved', label: 'Sparito da YouTube · salvato' };

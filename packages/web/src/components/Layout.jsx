@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { LayoutGrid, Rss, Search, Settings, X, Users, Pin, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Rss, Search, Settings, X, Users, Pin, ArrowRight, Activity } from 'lucide-react';
+import { ActivityIndicator } from './ActivityIndicator.jsx';
+import { useActivity } from '../lib/activityStore.js';
 import { listProfiles } from '../api/client.js';
 import { ProfileAvatar } from './ProfileAvatar.jsx';
 import { onProfilesChanged } from '../lib/profileEvents.js';
@@ -28,6 +30,7 @@ export function Layout() {
     return onProfilesChanged(load);
   }, [location.pathname]);
   const pinned = profiles.filter((p) => p.pinned);
+  const activeJobs = useActivity()?.active?.length ?? 0;
 
   // Unica barra di ricerca (punto 10): sincronizzata con la query attiva
   // dell'URL — su /search?q=… mostra il termine cercato, altrove si svuota.
@@ -70,12 +73,14 @@ export function Layout() {
             </button>
           )}
         </form>
+        <ActivityIndicator />
       </header>
       <div className="body-area">
         <nav className="sidebar">
           <NavLink to="/" end className={navCls}><LayoutGrid size={16} />Libreria</NavLink>
           <NavLink to="/creators" end className={navCls}><Users size={16} />Creator</NavLink>
-          <NavLink to="/sources" className={navCls}><Rss size={16} />Sorgenti</NavLink>
+          <NavLink to="/sources" className={navCls}><Rss size={16} />Fonti</NavLink>
+          <NavLink to="/activity" className={navCls}><Activity size={16} />Attività{activeJobs > 0 && <span className="side-badge">{activeJobs}</span>}</NavLink>
           <NavLink to="/settings" className={navCls}><Settings size={16} />Impostazioni</NavLink>
           <div className="side-div"></div>
           <div className="side-sec"><Pin size={11} style={{ verticalAlign: -1 }} /> Fissati</div>

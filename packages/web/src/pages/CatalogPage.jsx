@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Star, SquareCheck, LayoutGrid, List, CloudDownload, FileDown, ListPlus, EyeOff, Eye, X, Archive, CheckCheck } from 'lucide-react';
 import { listVideos, listSources, listProfiles, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
+import { ProblemGroups } from '../components/ProblemGroups.jsx';
+import { useActivity } from '../lib/activityStore.js';
 import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
@@ -46,6 +48,11 @@ export function CatalogPage() {
     listVideos().then(setVideos).catch((e) => setError(e.message));
   }
   useEffect(reload, []);
+  // Un lavoro appena finito (download, controllo di una fonte) cambia lo stato
+  // dei video: si ricarica l'elenco, anche se l'ha avviato un'altra pagina o
+  // lo scheduler.
+  const lastFinished = useActivity()?.finished?.[0]?.id;
+  useEffect(() => { if (lastFinished) reload(); }, [lastFinished]);
   useEffect(() => { listSources().then(setSources).catch(() => {}); }, []);
   useEffect(() => { listProfiles().then(setProfiles).catch(() => {}); }, []);
 
@@ -290,6 +297,8 @@ export function CatalogPage() {
 
       {videos === null ? (
         <div className="empty-state"><span className="spinner"></span></div>
+      ) : view.value === 'problemi' && !selectMode && filtered.length > 0 ? (
+        <ProblemGroups videos={filtered} onChanged={reload} />
       ) : filtered.length === 0 ? (
         <div className="empty-state">Nessun video in questa vista.</div>
       ) : (

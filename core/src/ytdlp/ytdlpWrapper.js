@@ -83,9 +83,17 @@ export async function getYtdlpVersion() {
 }
 
 export async function getPlaylistEntries(playlistUrl) {
-  const { ytdlpBinaryPath } = getPaths();
+  const { ytdlpBinaryPath, cookiesPath } = getPaths();
+  // Con i cookie (se ci sono) anche l'elenco: senza, i video privati o non in
+  // elenco del proprio account non compaiono, la sync li vede "usciti dalla
+  // fonte" e il controllo li segna come privati. Solo un elenco leggero
+  // (--flat-playlist): nessun byte dalla CDN, dove cookie e client android_vr
+  // insieme danno 403.
+  const args = [...JS_RUNTIME_ARGS, ...PLAYER_CLIENT_ARGS, '--flat-playlist', '-J'];
+  if (cookiesPath) args.push('--cookies', cookiesPath);
+  args.push(playlistUrl);
   const { stdout, stderr } = await new Promise((resolve, reject) => {
-    const proc = spawn(ytdlpBinaryPath, [...JS_RUNTIME_ARGS, ...PLAYER_CLIENT_ARGS, '--flat-playlist', '-J', playlistUrl]);
+    const proc = spawn(ytdlpBinaryPath, args);
     let out = '';
     let err = '';
     proc.stdout.on('data', (d) => { out += d.toString(); });

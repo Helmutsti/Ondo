@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listSources, addSource, removeSource, syncSource, triggerJob } from '@catalog/core';
+import { listSources, addSource, removeSource, setSourceRules, triggerJob } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
 
 export const sourcesRouter = Router();
@@ -27,21 +27,20 @@ sourcesRouter.delete('/sources/:id', asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// body.sourceId assente/omesso => sincronizza tutte le fonti in sequenza,
-// stesso comportamento di "Tutte le fonti" nel CLI. Fase 1 (flat) sincrona,
-// poi si lancia enrichSource (fase 2) e si torna il jobId per la barra.
+// Regole della fonte (controllo automatico, scaricamento automatico, qualità).
+// includeExisting: con l'automatico acceso, accoda anche i video già presenti
+// e non scaricati della fonte.
+sourcesRouter.patch('/sources/:id/rules', asyncRoute(async (req, res) => {
+  const { rules, includeExisting } = req.body ?? {};
+  res.json(await setSourceRules(req.params.id, rules ?? {}, { includeExisting: includeExisting === true }));
+}));
+
+// Controllo di una fonte (body.sourceId) o di tutte: un job syncSource per
+// fonte, così ciascuna ha il suo avanzamento e il suo esito in Attività, e la
+// richiesta torna subito invece di aspettare l'elenco di ogni playlist.
 sourcesRouter.post('/sync', asyncRoute(async (req, res) => {
   const { sourceId } = req.body ?? {};
-  const results = {};
-  if (sourceId) {
-    results[sourceId] = await syncSource(sourceId);
-  } else {
-    for (const source of await listSources()) {
-      results[source.id] = await syncSource(source.id);
-    }
-  }
-  // enrichSource senza sourceId arricchisce tutti i video ancora da arricchire
-  // (copre sia "una fonte" sia "tutte"): idempotente, salta i già arricchiti.
-  const { jobId } = triggerJob('enrichSource', sourceId ? { sourceId } : {});
-  res.json({ results, jobId });
+  const ids = sourceId ? [sourceId] : (await listSources()).map((s) => s.id);
+  const jobs = ids.map((id) => ({ sourceId: id, jobId: triggerJob('syncSource', { sourceId: id }).jobId }));
+  res.json({ jobs });
 }));
