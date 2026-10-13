@@ -51,7 +51,7 @@ jobs:
           #    completa (comandi → core → disco) sull'artefatto confezionato.
           mkdir libreria && cd libreria
           node ../pkg/bin/ondo.js init
-          test -f data/libreria.json
+          test -f data/libreria.db
           test -d thumbnails && test -d avatars && test -d videos
           node ../pkg/bin/ondo.js video list
 
