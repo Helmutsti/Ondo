@@ -1,8 +1,8 @@
 import { readCatalog, updateCatalog, claimVideosForDownload } from '../../catalog/catalogStore.js';
 import { DOWNLOAD_STATE } from '../../catalog/catalogSchema.js';
-import { downloadVideo, isVideoGoneError } from '../../ytdlp/ytdlpWrapper.js';
+import { downloadVideo } from '../../ytdlp/ytdlpWrapper.js';
 import { syncChannelAvatars } from '../../services/channelAvatarService.js';
-import { markVideoRemoved } from '../../services/metadataService.js';
+import { recordDownloadFailure } from '../../services/presenceService.js';
 
 export async function downloadSingleJob(params, { log, progress, signal }) {
   const { videoId, audioStrategy, maxHeight } = params;
@@ -42,18 +42,9 @@ export async function downloadSingleJob(params, { log, progress, signal }) {
 
     return { downloaded: 1, failed: 0 };
   } catch (err) {
-    await updateCatalog((cat) => {
-      const v = cat.videos[videoId];
-      v.download = DOWNLOAD_STATE.FAILED;
-      v.attempts = (v.attempts ?? 0) + 1;
-      v.error = { message: err.message, occurredAt: new Date().toISOString(), attempts: v.attempts };
-      v.updatedAt = new Date().toISOString();
-    });
-    if (isVideoGoneError(err)) {
-      await markVideoRemoved(videoId);
-      log(`⊘ ${videoId} è privato — segnato come "Rimosso".`);
-    }
-    log(`✘ ${videoId} fallito: ${err.message}`);
+    const { classification, outcome } = await recordDownloadFailure(videoId, err);
+    if (outcome === 'removed') log(`⊘ ${videoId}: ${classification.hint}`);
+    log(`✘ ${videoId} fallito [${classification.category}]: ${classification.hint} — ${classification.message}`);
     throw err;
   }
 }

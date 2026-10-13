@@ -50,8 +50,11 @@ export function sourceCommand() {
       const result = await core.syncSource(id);
       console.log(
         `${style.green('✓')} +${result.newCount} nuovi, ${result.healedCount} recuperati, ` +
-        `${result.removedCount} rimossi, ${result.restoredCount} ripristinati`
+        `${result.leftCount} usciti dalla playlist, ${result.rejoinedCount} rientrati, ${result.toVerifyCount} da verificare`
       );
+      if (result.suspect) {
+        console.log(style.dim(`⚠ elenco anomalo (${result.suspect.count} video invece di ${result.suspect.lastGoodCount ?? '?'}): nessun video segnato come uscito`));
+      }
     });
 
   return cmd;

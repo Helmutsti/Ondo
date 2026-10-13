@@ -1,8 +1,9 @@
 import { readCatalog, updateCatalog } from '../../catalog/catalogStore.js';
 import { prepareSingleVideoDownload } from '../../services/singleVideoService.js';
-import { fetchVideoMetadata, isVideoGoneError } from '../../ytdlp/ytdlpWrapper.js';
+import { fetchVideoMetadata } from '../../ytdlp/ytdlpWrapper.js';
+import { classifyYtdlpError, errorRecord } from '../../ytdlp/errorClassifier.js';
 import { syncChannelAvatars } from '../../services/channelAvatarService.js';
-import { markVideoRemoved } from '../../services/metadataService.js';
+import { applyRemoteVerdict } from '../../services/presenceService.js';
 
 const ACTION_LABEL = {
   'already-downloaded': 'era già scaricato',
@@ -43,14 +44,19 @@ export async function addVideoJob({ url }, { log, progress }) {
     });
     log(`✔ Metadati completi salvati.`);
   } catch (err) {
-    if (isVideoGoneError(err)) {
-      await markVideoRemoved(result.videoId);
-      log(`⊘ Video privato — segnato come "Rimosso".`);
-    } else {
-      // Il video resta comunque in libreria con i metadati leggeri già presenti:
-      // un fallimento qui non deve far fallire l'intera aggiunta.
-      log(`✘ Metadati completi non recuperati: ${err.message}`);
-    }
+    // Il video resta comunque in libreria con i metadati leggeri già presenti:
+    // un fallimento qui non deve far fallire l'intera aggiunta. La presenza
+    // cambia solo se l'errore lo dice davvero (vedi presenceService).
+    const classification = classifyYtdlpError(err);
+    const outcome = await updateCatalog((cat) => {
+      const current = cat.videos[result.videoId];
+      if (!current) return null;
+      current.enrichError = errorRecord(classification, { attempts: 1 });
+      current.updatedAt = new Date().toISOString();
+      return applyRemoteVerdict(current, classification, { isCheck: false }).outcome;
+    });
+    if (outcome === 'removed') log(`⊘ ${classification.hint}`);
+    else log(`✘ Metadati completi non recuperati [${classification.category}]: ${classification.hint} — ${classification.message}`);
   }
 
   // Un video singolo può introdurre un creator mai visto prima nel catalogo

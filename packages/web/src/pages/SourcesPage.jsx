@@ -182,9 +182,17 @@ export function SourcesPage() {
 
   function summaryLine(r) {
     const parts = [`${r.newCount} nuovi`];
-    if (r.removedCount) parts.push(`${r.removedCount} rimossi`);
-    if (r.restoredCount) parts.push(`${r.restoredCount} ricomparsi`);
+    // Usciti dalla playlist ≠ spariti da YouTube: la presenza la decide il
+    // controllo dei singoli video che parte subito dopo (in Cronologia).
+    if (r.leftCount) parts.push(`${r.leftCount} usciti dalla playlist`);
+    if (r.rejoinedCount) parts.push(`${r.rejoinedCount} rientrati`);
+    if (r.toVerifyCount) parts.push(`${r.toVerifyCount} da verificare`);
     if (r.healedCount) parts.push(`${r.healedCount} riparati`);
+    // Elenco anomalo (molto più corto del solito, o troncato): nessuna uscita
+    // dedotta, si riprova al prossimo controllo.
+    if (r.suspect) {
+      parts.push(`⚠ elenco anomalo (${r.suspect.count} video invece di ${r.suspect.lastGoodCount ?? '?'}): nessun video segnato come uscito`);
+    }
     // backlog #4: avvisa se YouTube dichiara più video di quanti enumerati
     // (alcuni non visibili ora: privati/rimossi/glitch — riprova la sync).
     if (r.missingCount > 0) {

@@ -48,20 +48,20 @@ const JS_RUNTIME_ARGS = [
 // supplementare: aggiunge opzioni, non sostituisce nulla.
 const PLAYER_CLIENT_ARGS = ['--extractor-args', 'youtube:player_client=default,android_vr,web_embedded'];
 
-// yt-dlp segnala così un video reso privato dall'autore o comunque sparito per
-// sempre da YouTube — verificato dal vivo su 3 varianti reali: "Private video.
-// Sign in if you've been granted access...", "Video unavailable. This video is
-// no longer available because the YouTube account associated with this video
-// has been terminated.", "Video unavailable. It was removed following a
-// copyright removal request by <titolare>". Tutte iniziano con "Private video"
-// o "Video unavailable" — segnali DEFINITIVI, diversi da un errore di
-// rete/server temporaneo — usati per marcare il video "Rimosso" subito invece
-// di lasciarlo per sempre in limbo come "da scaricare" senza titolo/canale
-// (bug reale trovato: solo "private video" era intercettato, i video con
-// account terminato/rimozione per copyright restavano bloccati per sempre,
-// ri-tentati a ogni sync senza mai avere successo né essere segnalati).
-export function isVideoGoneError(err) {
-  return /private video|video unavailable/i.test(err?.message ?? '');
+// Cosa vuol dire un errore di yt-dlp per lo stato di un video (privato,
+// rimosso, bloccato, rete…) lo decide errorClassifier.js, e la presenza la
+// cambia solo presenceService.js. Qui non c'è più nessun test sui messaggi.
+
+// Le voci con cui YouTube rappresenta, dentro una playlist, un video che non è
+// più visibile: hanno un id ma il titolo è un segnaposto. Non sono titoli veri
+// e non sono la prova che il video esista.
+const PLACEHOLDER_TITLES = {
+  '[private video]': 'private',
+  '[deleted video]': 'deleted'
+};
+
+export function placeholderKind(title) {
+  return PLACEHOLDER_TITLES[String(title ?? '').trim().toLowerCase()] ?? null;
 }
 
 let cachedVersion = null;
@@ -84,7 +84,7 @@ export async function getYtdlpVersion() {
 
 export async function getPlaylistEntries(playlistUrl) {
   const { ytdlpBinaryPath } = getPaths();
-  const stdout = await new Promise((resolve, reject) => {
+  const { stdout, stderr } = await new Promise((resolve, reject) => {
     const proc = spawn(ytdlpBinaryPath, [...JS_RUNTIME_ARGS, ...PLAYER_CLIENT_ARGS, '--flat-playlist', '-J', playlistUrl]);
     let out = '';
     let err = '';
@@ -92,25 +92,31 @@ export async function getPlaylistEntries(playlistUrl) {
     proc.stderr.on('data', (d) => { err += d.toString(); });
     proc.on('error', reject);
     proc.on('close', (code) => {
-      if (code === 0) resolve(out);
+      if (code === 0) resolve({ stdout: out, stderr: err });
       else reject(new Error(`yt-dlp (enumerazione playlist) terminato con codice ${code}: ${err.slice(-500)}`));
     });
   });
 
   const data = JSON.parse(stdout);
-  const entries = data.entries ?? [];
+  const entries = (data.entries ?? []).filter((entry) => entry?.id);
   return {
     title: data.title ?? null,
     // Totale dichiarato da YouTube per la playlist (backlog #4): se differisce
     // dagli entries realmente enumerati, qualche video non è visibile in questa
     // estrazione (privato/rimosso/glitch). Può essere null se yt-dlp non lo espone.
     declaredCount: data.playlist_count ?? null,
+    // Gli avvisi di yt-dlp anche quando esce con successo: un elenco può
+    // arrivare troncato ("Incomplete data received") con codice 0, e chi
+    // sincronizza deve saperlo prima di dedurre che dei video sono usciti.
+    warnings: stderr.split('\n').map((l) => l.trim()).filter((l) => /^WARNING:/i.test(l)),
     entries: entries.map((entry, index) => ({
       id: entry.id,
       title: entry.title ?? null,
       channelName: entry.channel ?? entry.uploader ?? null,
       durationSeconds: entry.duration ?? null,
-      playlistIndex: index + 1
+      playlistIndex: index + 1,
+      // 'private' | 'deleted' se YouTube mostra solo un segnaposto, altrimenti null
+      unavailable: placeholderKind(entry.title)
     }))
   };
 }

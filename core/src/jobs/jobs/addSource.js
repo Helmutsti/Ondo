@@ -26,7 +26,16 @@ export async function addSourceJob({ url }, { log, progress }) {
   if (result.missingCount > 0) {
     log(`⚠ Enumerati ${result.enumeratedCount} su ${result.declaredCount} dichiarati — ${result.missingCount} video non visibili ora (riprova la sync più tardi).`);
   }
-  const enrich = await enrichSourceJob({ sourceId: result.sourceId }, { log, progress });
+  let enrich;
+  try {
+    enrich = await enrichSourceJob({ sourceId: result.sourceId }, { log, progress });
+  } catch (err) {
+    // La fonte è registrata comunque: il job fallisce solo per dire perché
+    // l'arricchimento si è fermato (es. blocco di YouTube).
+    const wrapped = new Error(`Fonte "${result.name}" aggiunta, ma l'arricchimento si è fermato: ${err.message}`);
+    wrapped.classification = err.classification;
+    throw wrapped;
+  }
 
   return {
     alreadyExists: false,

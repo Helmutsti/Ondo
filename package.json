@@ -17,7 +17,8 @@
     "web:dev:lan": "npm run dev:lan --workspace=packages/web",
     "web:build": "npm run build --workspace=@catalog/web",
     "web:start": "node packages/server/src/index.js",
-    "web:start:local": "node packages/server/src/index.js --local"
+    "web:start:local": "node packages/server/src/index.js --local",
+    "test": "npm test --workspace @catalog/core"
   },
   "workspaces": [
     "core",

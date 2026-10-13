@@ -1,6 +1,8 @@
 import { readCatalog, updateCatalog, claimVideosForDownload } from '../../catalog/catalogStore.js';
 import { DOWNLOAD_STATE } from '../../catalog/catalogSchema.js';
 import { downloadVideo } from '../../ytdlp/ytdlpWrapper.js';
+import { shouldStopRun } from '../../ytdlp/errorClassifier.js';
+import { recordDownloadFailure } from '../../services/presenceService.js';
 
 // Download "in blocco" (M25): riceve una lista esplicita di id da scaricare
 // (params.videoIds) — è la selezione multipla della Libreria (M28). Il vecchio
@@ -60,20 +62,20 @@ export async function downloadPendingJob(params, { log, progress, signal }) {
       results.push({ id, status: 'downloaded' });
       log(`✔ ${id} scaricato con successo.`);
     } catch (err) {
-      await updateCatalog((cat) => {
-        const v = cat.videos[id];
-        v.download = DOWNLOAD_STATE.FAILED;
-        v.attempts = (v.attempts ?? 0) + 1;
-        v.error = { message: err.message, occurredAt: new Date().toISOString(), attempts: v.attempts };
-        v.updatedAt = new Date().toISOString();
-      });
+      const { classification } = await recordDownloadFailure(id, err);
       failed += 1;
       results.push({ id, status: 'failed' });
-      log(`✘ ${id} fallito: ${err.message}`);
+      log(`✘ ${id} fallito [${classification.category}]: ${classification.hint} — ${classification.message}`);
       // Interruzione manuale (M51): ferma subito l'intero lotto, i video
       // successivi restano "da scaricare" — mai avviati, non solo saltati.
       if (signal?.aborted) {
         log(`Lotto interrotto dall'utente: ${candidates.length - results.length - skipped} video rimasti non avviati.`);
+        break;
+      }
+      // YouTube ci sta bloccando, o manca qualcosa sulla macchina: i video dopo
+      // fallirebbero tutti allo stesso modo. Restano "da scaricare".
+      if (shouldStopRun(classification)) {
+        log(`■ Lotto interrotto: ${classification.hint} ${candidates.length - results.length - skipped} video restano da scaricare.`);
         break;
       }
     }

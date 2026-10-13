@@ -439,7 +439,9 @@ export function VideoDetailPage() {
 
           {video.download === 'failed' && video.error && (
             <div className="notice error" style={{ marginTop: 16 }}>
-              Download fallito ({video.attempts} tentativ{video.attempts === 1 ? 'o' : 'i'}): {typeof video.error === 'string' ? video.error : video.error?.message ?? 'errore sconosciuto'}
+              Download fallito ({video.attempts} tentativ{video.attempts === 1 ? 'o' : 'i'}): {typeof video.error === 'string'
+                ? video.error
+                : [video.error?.hint, video.error?.message].filter(Boolean).join(' — ') || 'errore sconosciuto'}
             </div>
           )}
 

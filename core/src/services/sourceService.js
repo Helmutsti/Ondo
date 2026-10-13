@@ -8,6 +8,9 @@ export async function listSources() {
   const counts = {};
   for (const video of Object.values(catalog.videos)) {
     for (const s of video.sources ?? []) {
+      // I video usciti dalla playlist restano in libreria con la loro
+      // etichetta, ma non fanno più parte della fonte.
+      if (s.leftAt) continue;
       counts[s.sourceId] = (counts[s.sourceId] ?? 0) + 1;
     }
   }
@@ -43,7 +46,10 @@ export async function addSource(url) {
       id: playlistId,
       name: title ?? `Playlist ${playlistId}`,
       url: canonicalUrl,
-      lastCheckedAt: new Date().toISOString()
+      lastCheckedAt: new Date().toISOString(),
+      // Primo elenco: è il riferimento con cui si giudicano i prossimi (un
+      // elenco molto più corto è sospetto, vedi syncService.assessEnumeration).
+      lastGoodCount: entries.length
     };
     const ingestResult = ingestPlaylistEntries(catalog, catalog.sources[playlistId], entries, paths);
     result = {
