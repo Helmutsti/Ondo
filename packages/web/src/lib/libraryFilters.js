@@ -46,7 +46,7 @@ export function leftAllSources(v) {
 // scaricato e ancora su YouTube è lo stato normale.
 export function coverState(video, { progress, queuePosition } = {}) {
   if (video.download === 'downloading') {
-    return { kind: 'downloading', label: progress != null ? `${Math.round(progress)}%` : 'In download' };
+    return { kind: 'downloading', label: 'In download' };
   }
   // In coda (download avviato, non ancora partito): lo dice l'Attività.
   if (queuePosition != null && video.download !== 'downloaded') {

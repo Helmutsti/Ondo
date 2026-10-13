@@ -1385,6 +1385,7 @@ a.profile-chip:hover { border-color: var(--border); }
 .thumb-wrap { position: relative; }
 .card-row .thumb-wrap { flex: none; }
 .thumb.lost img { filter: grayscale(1) brightness(.75); }
+.thumb.downloading img { filter: blur(6px); transition: filter .25s ease; }
 .card.lost .card-title { color: var(--muted); }
 .cover-pill {
   position: absolute; left: 8px; top: 8px; z-index: 2; max-width: calc(100% - 44px);

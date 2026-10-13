@@ -156,9 +156,19 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
           <Star size={16} fill="currentColor" />
         </div>
       )}
+      {/* Cerchio che si riempie al centro (M45): il feedback grande del
+          download; in alto resta la sola pillola "In download". */}
       {downloading && (
-        <div className={`cover-progress${progress == null ? ' indeterminate' : ''}`}>
-          <div style={progress != null ? { width: `${progress}%` } : undefined}></div>
+        <div className="dl-overlay">
+          <svg className="dl-ring" viewBox="0 0 36 36">
+            <circle className="dl-ring-track" cx="18" cy="18" r="15.9155" />
+            <circle
+              className={`dl-ring-fill${progress == null ? ' indeterminate' : ''}`}
+              cx="18" cy="18" r="15.9155"
+              style={progress != null ? { strokeDashoffset: 100 - progress } : undefined}
+            />
+          </svg>
+          <Download size={16} className="dl-icon" />
         </div>
       )}
       {dur && <div className="dur">{dur}</div>}
