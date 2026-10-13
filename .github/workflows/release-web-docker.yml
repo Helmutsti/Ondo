@@ -12,7 +12,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login su GitHub Container Registry
         uses: docker/login-action@v3
@@ -37,16 +37,13 @@ jobs:
             type=raw,value=${{ github.event.release.tag_name }}
             type=raw,value=latest
 
-      # M99 — armv7 (NAS ARM a 32 bit) accanto alle due a 64 bit. Non allunga
-      # molto la build: lo stage che compila la web gira sulla piattaforma del
-      # runner per tutte le varianti (vedi Dockerfile.web), quindi qui si
-      # aggiunge un download di binari e poco altro.
-      - name: Build e push multi-piattaforma (amd64 + arm64 + armv7), solo Dockerfile.web
+      # Solo 64 bit: armv7 (NAS ARM a 32 bit) tolta, Ondo non gira su NAS.
+      - name: Build e push multi-piattaforma (amd64 + arm64), solo Dockerfile.web
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.web
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
