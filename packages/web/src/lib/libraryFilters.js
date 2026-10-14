@@ -12,16 +12,17 @@ export const isLost = (v) => v.presence === 'removed' && v.download !== 'downloa
 export const isSaved = (v) => v.presence === 'removed' && v.download === 'downloaded';
 
 export const LIBRARY_VIEWS = [
-  { value: 'tutti', label: 'Tutti', fn: (v) => !v.hidden },
+  // «Tutti» sono i video che hai: gli scaricati (anche quelli spariti nel
+  // frattempo da YouTube). Ha preso il posto della vecchia vista «Scaricati».
+  { value: 'tutti', label: 'Tutti', fn: (v) => !v.hidden && v.download === 'downloaded' },
+  { value: 'preferiti', label: 'Preferiti', star: true, fn: (v) => !v.hidden && !!v.favorite },
   // I video in download restano in "Da scaricare" finché non finiscono,
   // invece di sparire all'avvio e ricomparire altrove.
   { value: 'da-scaricare', label: 'Da scaricare', dot: 'available', fn: (v) => !v.hidden && v.presence === 'present' && (v.download === 'none' || v.download === 'downloading') },
-  { value: 'scaricati', label: 'Scaricati', dot: 'downloaded', fn: (v) => !v.hidden && v.download === 'downloaded' },
   // Un video sparito da YouTube sta in «Spariti», anche se un tentativo di
   // download è fallito: non è un problema da risolvere, non c'è più niente.
   { value: 'problemi', label: 'Problemi', dot: 'failed', fn: (v) => !v.hidden && v.download === 'failed' && v.presence !== 'removed' },
   { value: 'spariti', label: 'Spariti da YouTube', dot: 'removed', fn: (v) => !v.hidden && v.presence === 'removed' },
-  { value: 'preferiti', label: 'Preferiti', star: true, fn: (v) => !v.hidden && !!v.favorite },
   { value: 'nascosti', label: 'Nascosti', dot: 'hidden', fn: (v) => !!v.hidden }
 ];
 
