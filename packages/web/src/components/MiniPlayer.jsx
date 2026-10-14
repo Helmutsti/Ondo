@@ -233,6 +233,11 @@ export function MiniPlayer() {
     }
   }
 
+  // Copertina "clicca per riprodurre": mai sopra un video che sta andando (se
+  // il play parte da fuori — tasti del sistema, cuffie, ripiego su HLS — e
+  // `started` resta indietro, coprirebbe l'immagine con l'audio che scorre).
+  const coverShown = docked && !started && !playing;
+
   const portalContent = current && (
     <>
       <video
@@ -260,7 +265,10 @@ export function MiniPlayer() {
       )}
       {discreet.mode !== 'off' && discreet.revealedId !== current.id && (
         <>
-          <div className="discreet-veil" />
+          {/* Non sopra la copertina "riproduci": la sfocherebbe insieme al
+              tasto play. Lì l'immagine è già sfocata dalla regola sulle <img>,
+              e sotto non c'è ancora nessun fotogramma da nascondere. */}
+          {!coverShown && <div className="discreet-veil" />}
           {/* Fuori dal velo: sopra i comandi del player, che coprono il velo. */}
           <button className="discreet-reveal" onClick={() => revealPlayer(current.id)} title="Mostra l'immagine di questo video">
             <Eye size={13} />Mostra
@@ -272,10 +280,7 @@ export function MiniPlayer() {
           <span className="player-buffering-ring" />
         </div>
       )}
-      {/* Mai sopra un video che sta andando: se il play parte da fuori (tasti
-          del sistema, cuffie, ripiego su HLS) e `started` resta indietro, la
-          copertina coprirebbe l'immagine con l'audio che scorre. */}
-      {docked && !started && !playing && (
+      {coverShown && (
         <button className="player-cover" onClick={() => videoRef.current?.play()} aria-label="Riproduci">
           {current.thumbnailUrl && <img src={current.thumbnailUrl} alt="" />}
           <span className="player-cover-play"><Play size={28} fill="currentColor" /></span>
