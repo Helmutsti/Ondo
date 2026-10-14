@@ -84,3 +84,16 @@ export function toPublicVideo(video, creatorIndex = {}) {
     }
   };
 }
+
+// I campi che servono solo alla pagina del video (descrizione, tag, capitoli,
+// la cronologia dei metadati…) o a nessuno (l'elenco di tutte le copertine di
+// YouTube, da solo metà del peso). Negli elenchi non viaggiano: la Libreria con
+// qualche centinaio di video passava da ~4 MB a una frazione.
+const DETAIL_ONLY = ['description', 'tags', 'thumbnails', 'chapters', 'categories', 'subtitleLanguagesAvailable', 'playlistContext', 'statsAtDownload', 'metadataHistory'];
+
+/** Il video per gli elenchi (Libreria, creator, ricerca): senza i campi del solo dettaglio. */
+export function toListVideo(video, creatorIndex = {}) {
+  const slim = { ...video };
+  for (const f of DETAIL_ONLY) delete slim[f];
+  return toPublicVideo(slim, creatorIndex);
+}

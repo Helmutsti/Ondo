@@ -16,7 +16,7 @@ import {
   MAX_CUSTOM_AVATAR_BYTES
 } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
-import { avatarUrl, toPublicVideo } from '../lib/publicVideo.js';
+import { avatarUrl, toListVideo } from '../lib/publicVideo.js';
 
 // Profili creator: uno o più canali della stessa persona, con nome e foto
 // scelti a mano. Le statistiche (video, scaricati, spariti, spazio su disco)
@@ -41,7 +41,7 @@ profilesRouter.get('/profiles/:id', asyncRoute(async (req, res) => {
 
 profilesRouter.get('/profiles/:id/videos', asyncRoute(async (req, res) => {
   const [videos, index] = await Promise.all([listProfileVideos(req.params.id), getCreatorIndex()]);
-  res.json(videos.map((v) => toPublicVideo(v, index)));
+  res.json(videos.map((v) => toListVideo(v, index)));
 }));
 
 // Nome e "fissato in sidebar". Un nome vuoto torna a seguire quello del canale.

@@ -4,6 +4,7 @@ import { WandSparkles, X, Check, Clock, Lock, LockOpen, CircleCheck, CircleX, Ar
 import { startMetadataUpdate, listMetadataReviews, resolveMetadataReview } from '../api/client.js';
 import { useMetadataWizard, closeMetadataWizard, FIELD_LABEL } from '../lib/metadataWizard.js';
 import { useActivity, refreshActivity } from '../lib/activityStore.js';
+import { sized, SMALL } from '../lib/images.js';
 import { showToast } from '../lib/toast.js';
 
 const STEPS = ['Cosa aggiornare', 'Regole', 'Recupero', 'Revisione'];
@@ -389,7 +390,7 @@ function ReviewStep({ scopeIds, label }) {
           <div className="section-label">{items.length} video da rivedere</div>
           {items.map((v, i) => (
             <button key={v.id} type="button" className={`review-item${i === index ? ' on' : ''}`} onClick={() => setIndex(i)}>
-              <span className="review-thumb">{v.thumbnailUrl && <img src={v.thumbnailUrl} alt="" />}</span>
+              <span className="review-thumb">{v.thumbnailUrl && <img src={sized(v.thumbnailUrl, SMALL)} alt="" />}</span>
               <span className="review-item-text">
                 <b className="discreet-text">{v.title}</b>
                 <small>{Object.keys(v.pendingReview.fields).map((f) => FIELD_LABEL[f].toLowerCase()).join(' · ')}</small>

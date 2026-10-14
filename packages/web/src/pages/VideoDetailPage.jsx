@@ -16,6 +16,7 @@ import { formatDuration, videoDisplayDate, channelKey, channelInitial, formatByt
 import { showToast, updateToast } from '../lib/toast.js';
 import { useQueue, removeFromQueue, clearQueue } from '../lib/queueStore.js';
 import { usePlayer, setCurrent, setMinimized, useAutoplayOnOpen } from '../lib/playerStore.js';
+import { sized, SMALL, AVATAR } from '../lib/images.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
 
 const DOWNLOAD_LABEL = { none: 'Non scaricato', downloading: 'In download', downloaded: 'Scaricato', failed: 'Errore download' };
@@ -297,7 +298,7 @@ export function VideoDetailPage() {
           <div className="d-row">
             <div className="d-chan">
               <div className="d-avatar">
-                {video.channel?.avatarUrl ? <img className="avatar-photo" src={video.channel.avatarUrl} alt="" /> : channelInitial(video)}
+                {video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" /> : channelInitial(video)}
               </div>
               <div>
                 {key ? (
@@ -513,7 +514,7 @@ export function VideoDetailPage() {
                       {queue.map((q) => (
                         <div key={q.id} className={`rel-item queue-item${q.id === id ? ' queue-item-current' : ''}`}>
                           <Link to={`/videos/${q.id}`} className="rel-thumb">
-                            {q.thumbnailUrl && <img src={q.thumbnailUrl} alt="" loading="lazy" />}
+                            {q.thumbnailUrl && <img src={sized(q.thumbnailUrl, SMALL)} alt="" loading="lazy" />}
                             {formatDuration(q.durationSeconds) && <div className="dur">{formatDuration(q.durationSeconds)}</div>}
                           </Link>
                           <div style={{ flex: 1, minWidth: 0 }}>

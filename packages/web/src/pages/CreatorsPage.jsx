@@ -5,6 +5,7 @@ import { listProfiles, updateProfile } from '../api/client.js';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { SkeletonProfiles } from '../components/Skeletons.jsx';
 import { useTitle } from '../hooks/useTitle.js';
+import { sized, THUMB } from '../lib/images.js';
 import { notifyProfilesChanged } from '../lib/profileEvents.js';
 
 const SORTS = [
@@ -50,7 +51,7 @@ export function ProfileCard({ profile, onTogglePin }) {
         style={profile.avatarUrl ? undefined : { background: `linear-gradient(145deg, hsl(${hue} 32% 30%), hsl(${(hue + 40) % 360} 28% 16%))` }}
       >
         {profile.avatarUrl
-          ? <img src={profile.avatarUrl} alt="" loading="lazy" />
+          ? <img src={sized(profile.avatarUrl, THUMB)} alt="" loading="lazy" />
           : <span className="creator-initial">{initial}</span>}
         <button
           type="button"

@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +37,13 @@ if (!isLibrary(library)) {
 openCatalog();
 
 const app = express();
+// Risposte compresse (JSON, JS, CSS, playlist): l'elenco dei video, il più
+// pesante, scende a una frazione. Mai gli eventi dal vivo dei job, che
+// resterebbero fermi nel buffer del compressore; video e immagini sono già
+// compressi e la libreria li salta da sé.
+app.use(compression({
+  filter: (req, res) => !String(res.getHeader('Content-Type') ?? '').includes('text/event-stream') && compression.filter(req, res)
+}));
 app.use(express.json());
 
 // Strumento locale single-user: server e client (CLI/web) girano sulla

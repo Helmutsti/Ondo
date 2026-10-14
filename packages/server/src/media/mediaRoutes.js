@@ -4,6 +4,7 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { getPaths, getVideo, expectedToolNames, scratchRoot } from '@catalog/core';
 import { createVodStream } from 'vod-stream';
+import { resizedImages } from './imageCache.js';
 
 // I binari di ffmpeg/ffprobe con la stessa precedenza del resto del core:
 // quelli in tools/ (o nell'immagine Docker), altrimenti il PATH.
@@ -22,8 +23,10 @@ function tool(name) {
 export function mountMediaRoutes(app) {
   const paths = getPaths();
   app.use('/media/videos', express.static(paths.videosDir));
-  app.use('/media/thumbnails', express.static(paths.thumbnailsDir));
-  app.use('/media/avatars', express.static(paths.avatarsDir));
+  // ?w= sceglie una copia ridotta per gli elenchi (media/imageCache.js);
+  // senza, l'originale.
+  app.use('/media/thumbnails', resizedImages({ baseDir: paths.thumbnailsDir, kind: 'thumbnails', fit: 'width', ffmpegPath: tool('ffmpeg') }), express.static(paths.thumbnailsDir));
+  app.use('/media/avatars', resizedImages({ baseDir: paths.avatarsDir, kind: 'avatars', fit: 'short', ffmpegPath: tool('ffmpeg') }), express.static(paths.avatarsDir));
 
   // Riproduzione su qualunque dispositivo (packages/vod-stream): il browser
   // chiede /media/stream/<id>/info.json e usa il file qui sopra se sa leggerlo,

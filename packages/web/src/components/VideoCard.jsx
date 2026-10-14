@@ -11,6 +11,7 @@ import { ignoreWithConfirm } from '../lib/ignoreAction.js';
 import { useJobStream } from '../hooks/useJobStream.js';
 import { addToQueue, removeFromQueue, useQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
+import { sized, THUMB, SMALL, AVATAR } from '../lib/images.js';
 
 // Voci del menu ⋮ per tipo di azione (kind da actionsFor). Etichette/icone in
 // stile YouTube; "hide"→Nascondi, "unhide"→Mostra di nuovo. Nascondere non è
@@ -130,7 +131,7 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
   // che ne fissa la dimensione (thumb-row vs il default a piena colonna).
   const thumbInner = (
     <>
-      {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" loading="lazy" /> : null}
+      {video.thumbnailUrl ? <img src={sized(video.thumbnailUrl, layout === 'row' ? SMALL : THUMB)} alt="" loading="lazy" /> : null}
       {(selectMode || selected) && (
         <span className={`card-check${selected ? ' on' : ''}`} aria-hidden="true">{selected && <Check size={13} strokeWidth={3} />}</span>
       )}
@@ -288,11 +289,11 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
       <div className="card-info">
         {key ? (
           <Link to={creatorPath} className="avatar">
-            {video.channel?.avatarUrl ? <img className="avatar-photo" src={video.channel.avatarUrl} alt="" /> : channelInitial(video)}
+            {video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" loading="lazy" /> : channelInitial(video)}
           </Link>
         ) : (
           <div className="avatar">
-            {video.channel?.avatarUrl ? <img className="avatar-photo" src={video.channel.avatarUrl} alt="" /> : channelInitial(video)}
+            {video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" loading="lazy" /> : channelInitial(video)}
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>

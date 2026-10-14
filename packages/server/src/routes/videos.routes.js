@@ -19,7 +19,7 @@ import {
   getCreatorIndex
 } from '@catalog/core';
 import { asyncRoute } from '../lib/asyncRoute.js';
-import { toPublicVideo } from '../lib/publicVideo.js';
+import { toPublicVideo, toListVideo } from '../lib/publicVideo.js';
 
 export const videosRouter = Router();
 
@@ -28,12 +28,12 @@ videosRouter.get('/videos', asyncRoute(async (req, res) => {
   // derivata client-side (i video sono già tutti in memoria, vedi CatalogPage/
   // Libreria). Nessun filtro server-side sullo stato: gli assi sono ortogonali.
   const [videos, avatars] = await Promise.all([listVideos(), getCreatorIndex()]);
-  res.json(videos.map((v) => toPublicVideo(v, avatars)));
+  res.json(videos.map((v) => toListVideo(v, avatars)));
 }));
 
 videosRouter.get('/videos/available', asyncRoute(async (req, res) => {
   const [videos, avatars] = await Promise.all([listAvailable(), getCreatorIndex()]);
-  res.json(videos.map((v) => toPublicVideo(v, avatars)));
+  res.json(videos.map((v) => toListVideo(v, avatars)));
 }));
 
 // Download one-off di un singolo video (M8): risolve/crea lo stub e, se c'è
@@ -89,7 +89,7 @@ videosRouter.post('/videos/:id/download', asyncRoute(async (req, res) => {
 videosRouter.get('/search', asyncRoute(async (req, res) => {
   const limit = req.query.limit ? Number(req.query.limit) : undefined;
   const [results, avatars] = await Promise.all([searchVideos(req.query.q, { limit }), getCreatorIndex()]);
-  res.json(results.map((v) => toPublicVideo(v, avatars)));
+  res.json(results.map((v) => toListVideo(v, avatars)));
 }));
 
 videosRouter.get('/channels/:key/videos', asyncRoute(async (req, res) => {
@@ -97,7 +97,7 @@ videosRouter.get('/channels/:key/videos', asyncRoute(async (req, res) => {
     listVideosByChannel(req.params.key),
     getCreatorIndex()
   ]);
-  res.json(videos.map((v) => toPublicVideo(v, avatars)));
+  res.json(videos.map((v) => toListVideo(v, avatars)));
 }));
 
 videosRouter.get('/videos/:id', asyncRoute(async (req, res) => {

@@ -316,6 +316,7 @@ Nel caso Docker il codice sta nell'immagine, quindi l'installazione sull'host è
 | `ONDO_CONFIG_DIR` | Sposta la cartella delle impostazioni. Usata dall'immagine (`/config`), e utile quando la cartella d'installazione non è scrivibile: in quel caso, da sé, il programma ricade sulla cartella utente e lo dice. |
 | `ONDO_LIBRARY` | Impone la libreria su cui lavorare, invece di prenderla dalla cartella corrente. Usata dall'immagine (`/library`), dove **è obbligatoria**: la cartella di lavoro del container è `/app`, che non è una libreria. |
 | `ONDO_SCRATCH_DIR` | Area di lavoro locale dei download: yt-dlp e ffmpeg scaricano, fondono e verificano qui, e nella libreria arriva solo il file finito. Utile quando libreria o video stanno su un NAS. Svuotata a ogni avvio del server. L'immagine la imposta a `/scratch` (volume Docker nel compose); non impostata = si scarica direttamente nella libreria. |
+| `ONDO_CACHE_DIR` | Copie ridotte di copertine e foto dei creator, create la prima volta che servono negli elenchi. Si può cancellare in qualunque momento: si ricrea da sola. L'immagine la imposta a `/cache` (volume Docker nel compose); non impostata = una cartella temporanea del sistema. |
 | `ONDO_BACKUP_DIR` | Attiva il backup automatico della libreria (lo stesso zip del backup manuale: tutto tranne video e cookie) in questa cartella. `ONDO_BACKUP_EVERY_HOURS` (default 24) e `ONDO_BACKUP_KEEP` (default 14 zip) ne regolano ritmo e rotazione. Solo per la web app. |
 
 | Campo | A cosa serve |

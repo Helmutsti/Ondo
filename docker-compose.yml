@@ -50,6 +50,9 @@ services:
       # usa-e-getta: si svuota a ogni avvio. Serve spazio libero per i video
       # in corso — circa 2× il video più grande per ogni download parallelo.
       - scratch:/scratch
+      # Copie ridotte di copertine e foto per gli elenchi: si possono cancellare
+      # in qualunque momento (`docker volume rm`), si ricreano da sole.
+      - cache:/cache
       # (Facoltativo) I video su un disco separato dal resto della libreria:
       # monta la cartella e poi imposta "videosRoot" in
       # library/data/conf.json — è l'unico percorso che il file contiene.
@@ -79,3 +82,4 @@ services:
 
 volumes:
   scratch:
+  cache:

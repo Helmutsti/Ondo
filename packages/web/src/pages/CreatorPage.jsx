@@ -21,6 +21,7 @@ import { notifyProfilesChanged } from '../lib/profileEvents.js';
 import { statusColor } from '../lib/status.js';
 import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 import { countViews, viewByValue, visibleViews } from '../lib/libraryFilters.js';
+import { SMALL } from '../lib/images.js';
 import { useIncremental } from '../hooks/useIncremental.js';
 
 
@@ -154,7 +155,7 @@ export function CreatorPage() {
 
       <div className="profile-head">
         <button type="button" className="profile-photo" onClick={() => setModal('photo')} title="Cambia foto">
-          <ProfileAvatar url={profile.avatarUrl} name={profile.name} className="profile-photo-img" />
+          <ProfileAvatar url={profile.avatarUrl} name={profile.name} className="profile-photo-img" size={SMALL} />
           <span className="profile-photo-edit"><Camera size={14} />Cambia</span>
         </button>
         <div className="profile-title">

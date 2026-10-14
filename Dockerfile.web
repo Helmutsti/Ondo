@@ -119,6 +119,10 @@ ENV ONDO_LIBRARY=/library
 # libreria o i video stanno su un NAS; il docker-compose.yml ci monta un volume
 # Docker suo, senza binding. Svuotata a ogni avvio del server.
 ENV ONDO_SCRATCH_DIR=/scratch
+# Cache delle copie ridotte di copertine e foto (packages/server/src/media/
+# imageCache.js): si può cancellare in qualunque momento, si ricrea da sola.
+# Senza un volume sta nel container e si perde a ogni aggiornamento (si rifà).
+ENV ONDO_CACHE_DIR=/cache
 
 # ca-certificates per le connessioni TLS (miniature, avatar, API di YouTube via
 # yt-dlp). ffmpeg NON arriva più da apt: quello di Debian 12 è la 5.1.x, mentre

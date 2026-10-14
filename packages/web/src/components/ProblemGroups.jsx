@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Cookie, RefreshCw, CloudDownload, Copy } from 'lucide-react';
 import { startBulkDownload } from '../lib/downloadActions.js';
+import { sized, SMALL } from '../lib/images.js';
 import { showToast } from '../lib/toast.js';
 
 // "Problemi" non è una lista indistinta: i video sono raggruppati per causa
@@ -80,7 +81,7 @@ export function ProblemGroups({ videos, onChanged }) {
             <div className="problem-tiles">
               {list.slice(0, 12).map((v) => (
                 <Link key={v.id} to={`/videos/${encodeURIComponent(v.id)}`} className="problem-tile" title={errorText(v)}>
-                  <span className="problem-thumb">{v.thumbnailUrl && <img src={v.thumbnailUrl} alt="" loading="lazy" />}</span>
+                  <span className="problem-thumb">{v.thumbnailUrl && <img src={sized(v.thumbnailUrl, SMALL)} alt="" loading="lazy" />}</span>
                   <span className="problem-title discreet-text">{v.title ?? v.id}</span>
                 </Link>
               ))}
