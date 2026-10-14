@@ -106,7 +106,7 @@ export function Layout() {
       {/* Mini-player persistente (M54): montato FUORI dall'<Outlet/>, così il suo
           <video> sopravvive al cambio di route e la riproduzione non si taglia. */}
       <MiniPlayer />
-      <MobileNav profiles={profiles} />
+      <MobileNav />
     </div>
   );
 }

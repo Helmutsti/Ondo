@@ -57,15 +57,16 @@ export async function syncSourceJob({ sourceId, auto = false }, ctx) {
     enrichError = err;
   }
 
-  // Scaricamento automatico: solo i video arrivati ORA, ancora su YouTube e
-  // non nascosti. La qualità è quella della fonte, senza domande.
+  // Scaricamento automatico: solo i video arrivati ORA e ancora su YouTube
+  // (nascosti compresi: nascondere toglie solo dalla vista). La qualità è
+  // quella della fonte, senza domande.
   const rules = rulesOf((await readCatalog()).sources[sourceId]);
   let autoQueued = 0;
   if (rules.autoDownload && r.newIds?.length) {
     const fresh = await readCatalog();
     const ids = r.newIds.filter((id) => {
       const v = fresh.videos[id];
-      return v && v.presence === PRESENCE.PRESENT && !v.hidden && v.download === DOWNLOAD_STATE.NONE;
+      return v && v.presence === PRESENCE.PRESENT && v.download === DOWNLOAD_STATE.NONE;
     });
     autoQueued = queueDownloads(ids, rules);
     if (autoQueued) log(`↓ ${autoQueued} video nuovi in coda per il download automatico.`);

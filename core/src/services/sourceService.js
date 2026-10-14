@@ -12,9 +12,10 @@ function inSource(video, sourceId) {
   return video.sources?.some((s) => s.sourceId === sourceId && !s.leftAt);
 }
 
-// Da scaricare = ancora su YouTube, non nascosto, mai scaricato.
+// Da scaricare = ancora su YouTube, mai scaricato. I nascosti sono video come
+// gli altri: nascondere toglie solo dalla vista della Libreria.
 function isToDownload(video) {
-  return video.presence === PRESENCE.PRESENT && !video.hidden && video.download === DOWNLOAD_STATE.NONE;
+  return video.presence === PRESENCE.PRESENT && video.download === DOWNLOAD_STATE.NONE;
 }
 
 export async function listSources() {

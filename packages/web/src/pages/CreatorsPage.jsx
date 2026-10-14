@@ -136,7 +136,7 @@ export function CreatorsPage() {
       {visible.length === 0 && <div className="empty-state">Nessun creator corrisponde.</div>}
       {pinned.length > 0 && (
         <>
-          <div className="section-label">Fissati in sidebar</div>
+          <div className="section-label">Fissati</div>
           <div className="creator-grid">
             {pinned.map((p) => <ProfileCard key={p.id} profile={p} onTogglePin={togglePin} />)}
           </div>

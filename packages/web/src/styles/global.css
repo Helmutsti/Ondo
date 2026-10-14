@@ -888,12 +888,12 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   .sidebar { display: none; }
   .main { padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); }
 
-  /* Barra di navigazione in basso, cinque voci della stessa larghezza. */
+  /* Barra di navigazione in basso: quattro icone della stessa larghezza. */
   .mobile-nav {
     display: flex;
     position: fixed;
     bottom: 0; left: 0; right: 0;
-    height: calc(60px + env(safe-area-inset-bottom));
+    height: calc(56px + env(safe-area-inset-bottom));
     padding: 0 6px env(safe-area-inset-bottom);
     background: color-mix(in oklch, var(--bg) 97%, transparent);
     backdrop-filter: blur(12px);
@@ -902,43 +902,15 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     align-items: center;
     z-index: 30;
   }
-  .mobile-nav > a, .mobile-nav > button {
+  .mobile-nav > a {
     flex: 1; min-width: 0; height: 100%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    font-size: 10.5px; font-weight: 500; color: var(--faint);
-    background: none; border: none; padding: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--faint);
     -webkit-tap-highlight-color: transparent;
   }
-  .mobile-nav > a.active, .mobile-nav > button.active { color: var(--ink); }
-  .mobile-nav .plus { flex: none; width: 56px; }
-  .mobile-nav .plus svg {
-    box-sizing: content-box; padding: 6px 12px; border-radius: 12px;
-    background: var(--accent); color: var(--accent-contrast);
-  }
+  .mobile-nav > a.active { color: var(--ink); }
+  .mobile-nav > a.active svg { filter: drop-shadow(0 0 10px color-mix(in oklch, var(--accent) 45%, transparent)); }
 
-  /* Pannello "Menu" dal basso: Impostazioni + creator. */
-  .sheet-overlay {
-    position: fixed; inset: 0; z-index: 200;
-    background: rgba(0,0,0,.55);
-    display: flex; align-items: flex-end;
-    animation: fade-in .15s ease;
-  }
-  .sheet {
-    width: 100%; max-height: 78vh; display: flex; flex-direction: column;
-    background: var(--panel); border-top: 1px solid var(--border);
-    border-radius: 18px 18px 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
-    animation: sheet-up .2s ease;
-  }
-  .sheet-head { position: relative; display: flex; justify-content: center; padding: 10px 12px 4px; }
-  .sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--border); margin-top: 2px; }
-  .sheet-close {
-    position: absolute; right: 10px; top: 6px; width: 36px; height: 36px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--panel2); border: none; color: var(--ink2); cursor: pointer;
-  }
-  .sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
-  .sheet-body .side-item { font-size: 15px; padding: 11px 12px; }
   .side-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* Intestazioni: azioni a capo invece che fuori dallo schermo. */
@@ -1013,10 +985,6 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheet-up { from { transform: translateY(24px); opacity: .6; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  .sheet-overlay, .sheet { animation: none; }
-}
-
 /* Selezione multipla in Libreria (M28) */
 .card-select { position: absolute; top: 8px; right: 8px; z-index: 3; width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
 .card.selected { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }

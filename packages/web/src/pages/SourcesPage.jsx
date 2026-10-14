@@ -75,8 +75,8 @@ export function SourcesPage() {
   const location = useLocation();
   const activity = useActivity();
 
-  // "+" della barra mobile: arriva qui con state.focusAdd e trova il campo già
-  // attivo, pronto per incollare il link (vedi MobileNav).
+  // Chi arriva con state.focusAdd trova il campo già attivo, pronto per
+  // incollare il link.
   useEffect(() => {
     if (location.state?.focusAdd) addInputRef.current?.focus();
   }, [location.key, location.state]);
