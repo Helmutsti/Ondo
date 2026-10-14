@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, GitMerge, MoreVertical, Pencil, Pin, Rss, Camera, Split, WandSparkles } from 'lucide-react';
+import { ArrowLeft, GitMerge, MoreVertical, Pencil, Pin, Rss, Camera, Split, WandSparkles, Star } from 'lucide-react';
 import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { useActivity } from '../lib/activityStore.js';
 import {
@@ -20,15 +20,8 @@ import { confirmDialog } from '../lib/dialog.js';
 import { notifyProfilesChanged } from '../lib/profileEvents.js';
 import { statusColor } from '../lib/status.js';
 import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
+import { countViews, viewByValue, visibleViews } from '../lib/libraryFilters.js';
 
-// Filtri della griglia: "Tutti" esclude i nascosti, che hanno la loro chip.
-const FILTERS = [
-  { value: 'todo', label: 'Da scaricare', dot: 'available', fn: (v) => !v.hidden && v.presence === 'present' && v.download === 'none' },
-  { value: 'downloaded', label: 'Scaricati', dot: 'downloaded', fn: (v) => !v.hidden && v.download === 'downloaded' },
-  { value: 'removed', label: 'Spariti da YouTube', dot: 'removed', fn: (v) => !v.hidden && v.presence === 'removed' },
-  { value: 'failed', label: 'Falliti', dot: 'failed', fn: (v) => !v.hidden && v.download === 'failed' },
-  { value: 'hidden', label: 'Nascosti', dot: 'hidden', fn: (v) => v.hidden }
-];
 
 // Profilo creator: chi è (foto, nome), di cosa è fatto (canali, fonti) e i suoi
 // video, con i filtri per stato e per canale.
@@ -38,7 +31,8 @@ export function CreatorPage() {
   const [profile, setProfile] = useState(null);
   const [videos, setVideos] = useState(null);
   const [error, setError] = useState(null);
-  const [filter, setFilter] = useState(null);
+  // Stessi filtri della Libreria (lib/libraryFilters.js), sui video di questo creator.
+  const [filter, setFilter] = useState('tutti');
   const showHidden = useShowHiddenFilter();
   const [channel, setChannel] = useState('');
   const [sort, setSort] = useState('uploadDate');
@@ -56,7 +50,7 @@ export function CreatorPage() {
     setProfile(null);
     setVideos(null);
     setError(null);
-    setFilter(null);
+    setFilter('tutti');
     setChannel('');
     reload();
   }, [id]);
@@ -140,13 +134,10 @@ export function CreatorPage() {
     [videos, channel]
   );
   const counts = useMemo(() => {
-    const c = { all: byChannel.filter((v) => !v.hidden).length };
-    for (const f of FILTERS) c[f.value] = byChannel.filter(f.fn).length;
-    return c;
+    return countViews(byChannel);
   }, [byChannel]);
   const shown = useMemo(() => {
-    const fn = (filter === 'hidden' && !showHidden ? null : FILTERS.find((f) => f.value === filter)?.fn) ?? ((v) => !v.hidden);
-    return sortVideos(byChannel.filter(fn), sort);
+    return sortVideos(byChannel.filter(viewByValue(filter, showHidden).fn), sort);
   }, [byChannel, filter, sort, showHidden]);
 
   if (error && !profile) return <div className="notice error">{error}</div>;
@@ -260,13 +251,13 @@ export function CreatorPage() {
       </div>
 
       <div className="chips">
-        <div className={`chip${filter == null ? ' active' : ''}`} onClick={() => setFilter(null)}>
-          Tutti{counts.all > 0 && <span className="count">{counts.all}</span>}
-        </div>
-        {FILTERS.filter((f) => (counts[f.value] > 0 || filter === f.value) && (showHidden || f.value !== 'hidden')).map((f) => (
+        {/* Solo i filtri con qualcosa dentro (e quello scelto): un creator ne
+            ha spesso pochi. */}
+        {visibleViews(showHidden).filter((f) => f.value === 'tutti' || counts[f.value] > 0 || filter === f.value).map((f) => (
           <div key={f.value} className={`chip${filter === f.value ? ' active' : ''}`} onClick={() => setFilter(f.value)}>
-            <span className="dot" style={{ background: statusColor(f.dot) }}></span>
-            {f.label}<span className="count">{counts[f.value]}</span>
+            {f.star && <Star size={12} fill={filter === f.value ? 'currentColor' : 'none'} />}
+            {f.dot && <span className="dot" style={{ background: statusColor(f.dot) }}></span>}
+            {f.label}{counts[f.value] > 0 && <span className="count">{counts[f.value]}</span>}
           </div>
         ))}
       </div>
