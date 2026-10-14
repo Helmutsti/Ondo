@@ -5,13 +5,12 @@ import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { useActivity } from '../lib/activityStore.js';
 import {
   getProfile, listProfileVideos, updateProfile, splitChannel,
-  setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata
+  setHidden, setFavorite, triggerJob, refreshMetadata
 } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { SkeletonGrid } from '../components/Skeletons.jsx';
 import { PhotoModal, MergeModal } from '../components/ProfileModals.jsx';
-import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
 import { startDownload } from '../lib/downloadActions.js';
@@ -20,6 +19,7 @@ import { showToast } from '../lib/toast.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { notifyProfilesChanged } from '../lib/profileEvents.js';
 import { statusColor } from '../lib/status.js';
+import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 
 // Filtri della griglia: "Tutti" esclude i nascosti, che hanno la loro chip.
 const FILTERS = [
@@ -39,13 +39,13 @@ export function CreatorPage() {
   const [videos, setVideos] = useState(null);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState(null);
+  const showHidden = useShowHiddenFilter();
   const [channel, setChannel] = useState('');
   const [sort, setSort] = useState('uploadDate');
   const [editing, setEditing] = useState(false);
   const [modal, setModal] = useState(null); // 'photo' | 'merge'
   const [chipMenu, setChipMenu] = useState(null);
   const nameRef = useRef(null);
-  const { requestHide, modal: hideModal } = useHideWithPrompt({ onDone: reload, onError: setError });
 
   function reload() {
     getProfile(id).then(setProfile).catch((e) => setError(e.message));
@@ -126,16 +126,9 @@ export function CreatorPage() {
         await startDownload(videoId, { triggerJob, onSettled: reload, title });
         return;
       }
-      if (kind === 'hide') { requestHide(videos.find((v) => v.id === videoId)); return; }
       if (kind === 'metadata') { await refreshMetadata(videoId); reload(); return; }
       if (kind === 'favorite' || kind === 'unfavorite') { await setFavorite(videoId, kind === 'favorite'); reload(); return; }
-      if (kind === 'deletevideo') {
-        await deleteVideo(videoId);
-        showToast('Video cancellato definitivamente.', 'success');
-        reload();
-        return;
-      }
-      if (kind === 'unhide') await setHidden(videoId, false);
+      if (kind === 'hide' || kind === 'unhide') await setHidden(videoId, kind === 'hide');
       reload();
     } catch (e) {
       setError(e.message);
@@ -152,9 +145,9 @@ export function CreatorPage() {
     return c;
   }, [byChannel]);
   const shown = useMemo(() => {
-    const fn = FILTERS.find((f) => f.value === filter)?.fn ?? ((v) => !v.hidden);
+    const fn = (filter === 'hidden' && !showHidden ? null : FILTERS.find((f) => f.value === filter)?.fn) ?? ((v) => !v.hidden);
     return sortVideos(byChannel.filter(fn), sort);
-  }, [byChannel, filter, sort]);
+  }, [byChannel, filter, sort, showHidden]);
 
   if (error && !profile) return <div className="notice error">{error}</div>;
   if (!profile) return <div style={{ marginTop: 160 }}><SkeletonGrid count={6} /></div>;
@@ -270,7 +263,7 @@ export function CreatorPage() {
         <div className={`chip${filter == null ? ' active' : ''}`} onClick={() => setFilter(null)}>
           Tutti{counts.all > 0 && <span className="count">{counts.all}</span>}
         </div>
-        {FILTERS.filter((f) => counts[f.value] > 0 || filter === f.value).map((f) => (
+        {FILTERS.filter((f) => (counts[f.value] > 0 || filter === f.value) && (showHidden || f.value !== 'hidden')).map((f) => (
           <div key={f.value} className={`chip${filter === f.value ? ' active' : ''}`} onClick={() => setFilter(f.value)}>
             <span className="dot" style={{ background: statusColor(f.dot) }}></span>
             {f.label}<span className="count">{counts[f.value]}</span>
@@ -301,7 +294,6 @@ export function CreatorPage() {
 
       {modal === 'photo' && <PhotoModal profile={profile} onClose={() => setModal(null)} onSaved={applyUpdate} />}
       {modal === 'merge' && <MergeModal profile={profile} onClose={() => setModal(null)} onSaved={applyUpdate} />}
-      {hideModal}
     </>
   );
 }

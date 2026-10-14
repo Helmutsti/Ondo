@@ -1,10 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MoreVertical, Download, CloudDownload, RotateCw, EyeOff, Eye, User, FileDown, Star, StarOff, Trash2, ListPlus, ListMinus, AlertTriangle, Ban, Lock, Check, CircleSlash } from 'lucide-react';
+import { MoreVertical, Download, CloudDownload, RotateCw, EyeOff, Eye, User, FileDown, Star, StarOff, ListPlus, ListMinus, AlertTriangle, Ban, Lock, Check, CircleSlash } from 'lucide-react';
 import { coverState, leftAllSources } from '../lib/libraryFilters.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial } from '../lib/format.js';
 import { actionsFor } from '../lib/reviewActions.js';
-import { confirmDialog } from '../lib/dialog.js';
 import { useActiveDownloadJobId } from '../lib/downloadTracker.js';
 import { useVideoActivity } from '../lib/activityStore.js';
 import { openMetadataWizard } from '../lib/metadataWizard.js';
@@ -106,17 +105,6 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
       removeFromQueue(video.id);
       showToast('Rimosso dalla coda.', 'info', 2000);
       return;
-    }
-    if (kind === 'deletevideo') {
-      // Cancellazione totale e irreversibile (punto 11): conferma esplicita,
-      // stesso modale usato per gli altri confirm dell'app.
-      const ok = await confirmDialog({
-        title: 'Cancellare definitivamente il video?',
-        message: `Azione irreversibile: file, copertina e scheda di "${video.title ?? video.id}" verranno cancellati per sempre. Se il video appartiene ancora a una fonte, la prossima sincronizzazione potrebbe reinserirlo in libreria.`,
-        confirmLabel: 'Cancella per sempre',
-        danger: true
-      });
-      if (!ok) return;
     }
     onDecide(video.id, kind);
   }
@@ -264,13 +252,6 @@ export function VideoCard({ video, onDecide, selected, onToggleSelect, selectMod
             <button className="menu-item danger" onClick={() => act('ignore')}>
               <CircleSlash size={15} />Ignora per sempre…
             </button>
-            {/* Cancella definitivamente (punto 11): solo sui video già
-                archiviati — gate a due passi, applicato anche lato core. */}
-            {video.hidden && (
-              <button className="menu-item danger" onClick={() => act('deletevideo')}>
-                <Trash2 size={15} />Cancella
-              </button>
-            )}
           </div>
         </>
       )}

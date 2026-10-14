@@ -7,7 +7,6 @@ import {
   setVideoHidden,
   setVideoFavorite,
   deleteVideoFile,
-  deleteVideoCompletely,
   ignoreVideo,
   listIgnored,
   unignoreVideo,
@@ -131,25 +130,10 @@ videosRouter.post('/videos/:id/favorite', asyncRoute(async (req, res) => {
   res.json(toPublicVideo(video, avatars));
 }));
 
-// Cancella solo il file scaricato dal disco (M30), download → none; la scheda
-// resta in libreria (metadati/copertina intatti). Ramo "No" di "Vuoi tenere il video?".
-videosRouter.delete('/videos/:id/file', asyncRoute(async (req, res) => {
-  const [video, avatars] = await Promise.all([deleteVideoFile(req.params.id), getCreatorIndex()]);
-  res.json(toPublicVideo(video, avatars));
-}));
-
-// Cancellazione totale e irreversibile (punto 11): scheda+file+copertina+
-// metadati grezzi spariscono dal catalogo — solo sui video già archiviati
-// (gate a due passi, applicato anche lato core in deleteVideoCompletely).
-videosRouter.delete('/videos/:id', asyncRoute(async (req, res) => {
-  await deleteVideoCompletely(req.params.id);
-  res.json({ ok: true, id: req.params.id });
-}));
-
-// «Ignora per sempre»: fuori dalla libreria (con i file, di default) e la sync
-// non lo reinserisce più. Si annulla da Impostazioni › Video ignorati.
+// «Ignora per sempre»: cancellato dalla libreria con i suoi file, e la sync non
+// lo reinserisce più. Si annulla da Impostazioni › Video ignorati.
 videosRouter.post('/videos/:id/ignore', asyncRoute(async (req, res) => {
-  res.json(await ignoreVideo(req.params.id, { deleteFiles: req.body?.deleteFiles !== false }));
+  res.json(await ignoreVideo(req.params.id));
 }));
 
 videosRouter.get('/ignored', asyncRoute(async (req, res) => {

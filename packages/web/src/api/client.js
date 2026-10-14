@@ -25,9 +25,9 @@ function qs(params = {}) {
 }
 
 export const listVideos = () => request('/api/videos');
-// «Ignora per sempre»: fuori dalla libreria (con i file) e la sync non lo reinserisce.
-export const ignoreVideo = (id, deleteFiles = true) =>
-  request(`/api/videos/${encodeURIComponent(id)}/ignore`, { method: 'POST', body: JSON.stringify({ deleteFiles }) });
+// «Ignora per sempre»: cancellato dalla libreria con i suoi file, e la sync non lo reinserisce.
+export const ignoreVideo = (id) =>
+  request(`/api/videos/${encodeURIComponent(id)}/ignore`, { method: 'POST' });
 export const listIgnored = () => request('/api/ignored');
 export const unignoreVideo = (id) => request(`/api/ignored/${encodeURIComponent(id)}`, { method: 'DELETE' });
 export const setMetadataParallel = (metadataParallel) =>
@@ -39,12 +39,6 @@ export const setHidden = (id, hidden) =>
 // Preferito (asse `favorite` del modello a flag, M43).
 export const setFavorite = (id, favorite) =>
   request(`/api/videos/${encodeURIComponent(id)}/favorite`, { method: 'POST', body: JSON.stringify({ favorite }) });
-// Cancella solo il file scaricato (M30); la scheda resta in libreria.
-export const deleteVideoFile = (id) =>
-  request(`/api/videos/${encodeURIComponent(id)}/file`, { method: 'DELETE' });
-// Cancellazione totale e irreversibile (punto 11): scheda+file+copertina+metadati.
-export const deleteVideo = (id) =>
-  request(`/api/videos/${encodeURIComponent(id)}`, { method: 'DELETE' });
 // Aggiorna metadati + copertina (M31); sui rimossi funge da ri-verifica.
 export const refreshMetadata = (id) =>
   request(`/api/videos/${encodeURIComponent(id)}/metadata/refresh`, { method: 'POST' });

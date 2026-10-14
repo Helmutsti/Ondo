@@ -1263,7 +1263,7 @@ html[data-discreet="all"][data-discreet-peek] .discreet-text:hover { filter: non
 .profile-card-name { font-family: 'Sora', system-ui, sans-serif; font-size: 15px; font-weight: 700; color: #fff; overflow-wrap: anywhere; }
 .profile-card-meta { font-size: 11.5px; color: var(--faint); margin-top: 4px; }
 .profile-card-stats { display: flex; gap: 18px; margin-top: 14px; }
-.profile-card-stats span { display: flex; flex-direction: column; font-size: 10.5px; color: var(--faint); }
+.profile-card-stats span { display: flex; flex-direction: column; align-items: center; font-size: 10.5px; color: var(--faint); }
 .profile-card-stats b { font-size: 14px; color: var(--ink); font-weight: 600; }
 .profile-pin {
   position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 7px;
@@ -1835,7 +1835,7 @@ a.profile-chip:hover { border-color: var(--border); }
 .creator-photo .profile-pin.active { color: var(--accent-ink); }
 @media (hover: none) { .creator-photo .profile-pin { opacity: 1; } }
 .creator-stats { display: flex; justify-content: space-between; padding: 11px 14px 12px; }
-.creator-stats span { display: flex; flex-direction: column; font-size: 10.5px; color: var(--faint); }
+.creator-stats span { display: flex; flex-direction: column; align-items: center; font-size: 10.5px; color: var(--faint); }
 .creator-stats b { font-size: 15px; color: var(--ink); font-weight: 600; }
 .creator-stats .warn b { color: oklch(0.80 0.14 65); }
 .creator-tile.skeleton { pointer-events: none; }

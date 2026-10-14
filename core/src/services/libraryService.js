@@ -26,7 +26,7 @@ export function removeFromDownloadArchive(paths, videoId) {
 // download:'none'. NON cancella l'entry di catalogo, i metadati grezzi né la
 // copertina: il video resta in libreria, ri-scaricabile — coerente con "i
 // record non si perdono mai". Rimuove anche la cartella del creator se rimasta
-// vuota. È il ramo "No, non tenere il file" della domanda "Vuoi tenere il video?".
+// vuota. Lo usa «Riscarica» (deleteFirst) per ripartire pulito.
 export async function deleteVideoFile(id) {
   const paths = getPaths();
   return updateCatalog((catalog) => {
@@ -60,50 +60,11 @@ export async function deleteVideoFile(id) {
   });
 }
 
-// Cancellazione TOTALE e irreversibile (punto 11 del backlog, promossa a
-// funzionalità): richiedibile SOLO su un video già archiviato (hidden) — un
-// gate a due passi deliberato (prima archivia, poi eventualmente cancella per
-// sempre), lo stesso spirito del pulsante "Cancella" mostrato solo in
-// Archiviati. A differenza di deleteVideoFile qui sparisce anche la SCHEDA dal
-// catalogo (file video + copertina + entry di catalogo + metadati grezzi in
-// nel catalogo), non solo il file fisico. Se il video appartiene ancora
-// a una fonte attiva su YouTube, la prossima sync la ricrea da zero (nuovo
-// stub, poi ri-arricchito) — non è un blocklist permanente, è "come se non
-// l'avessimo mai catalogato". Tolto anche dall'archivio yt-dlp
-// (--download-archive), stesso motivo di removeFromDownloadArchive sopra.
-export async function deleteVideoCompletely(id) {
-  const paths = getPaths();
-  await updateCatalog(async (catalog) => {
-    const video = catalog.videos[id];
-    if (!video) throw new Error(`Video non trovato nel catalogo: ${id}`);
-    if (!video.hidden) {
-      throw new Error(`Il video "${id}" va prima archiviato prima di poterlo cancellare definitivamente.`);
-    }
-
-    const videoRel = video.video?.localPath;
-    if (videoRel) {
-      const abs = path.join(paths.videosDir, videoRel);
-      if (existsSync(abs)) unlinkSync(abs);
-      const dir = path.dirname(abs);
-      removeDirIfEmpty(dir, paths.videosDir);
-    }
-    const thumbRel = video.thumbnail?.localPath;
-    if (thumbRel) {
-      const thumbAbs = path.join(paths.thumbnailsDir, thumbRel);
-      if (existsSync(thumbAbs)) unlinkSync(thumbAbs);
-    }
-    removeFromDownloadArchive(paths, id);
-    await deleteMetadata(id);
-    delete catalog.videos[id];
-  });
-}
-
 // M86 — «Togli dalla libreria». Traduzione di `Library::remove(id, delete_files)`
-// dal ramo Rust, ed è **un'altra cosa** da deleteVideoCompletely qui sopra:
-//   - nessun gate "prima archivialo": chi chiama ha già chiesto conferma (la CLI
-//     chiede due volte, la seconda solo per i file);
-//   - i file si cancellano **su richiesta**, non sempre: togliere la scheda
-//     tenendo il file è il caso normale di chi vuole solo pulire l'elenco.
+// dal ramo Rust. Chi chiama ha già chiesto conferma (la CLI chiede due volte, la
+// seconda solo per i file). I file si cancellano **su richiesta**: togliere la
+// scheda tenendo il file è il caso normale di chi vuole solo pulire l'elenco.
+// «Ignora per sempre» (ignoreService) la chiama sempre con i file.
 // Ritorna `false` se quell'id non c'era, come l'originale.
 export async function removeVideoFromLibrary(id, { deleteFiles = false } = {}) {
   const paths = getPaths();

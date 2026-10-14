@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Rss } from 'lucide-react';
-import { searchVideos, setHidden, setFavorite, deleteVideo, refreshMetadata, triggerJob, listProfiles, listSources } from '../api/client.js';
+import { searchVideos, setHidden, setFavorite, refreshMetadata, triggerJob, listProfiles, listSources } from '../api/client.js';
 import { ProfileAvatar } from '../components/ProfileAvatar.jsx';
 import { SkeletonRows } from '../components/Skeletons.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
-import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { startDownload } from '../lib/downloadActions.js';
 import { showToast } from '../lib/toast.js';
@@ -50,7 +49,6 @@ export function SearchPage() {
     const r = await searchVideos(q.trim());
     setResults(r);
   }
-  const { requestHide, modal } = useHideWithPrompt({ onDone: reSearch, onError: setError });
 
   // Copre tutte le azioni del menu ⋮ (M53), non più solo download/occhio: lo
   // stesso ventaglio di CatalogPage, qui instradato sui risultati di ricerca.
@@ -59,10 +57,6 @@ export function SearchPage() {
       if (kind === 'download') {
         const title = (results ?? []).find((v) => v.id === id)?.title;
         await startDownload(id, { triggerJob, onSettled: reSearch, title });
-        return;
-      }
-      if (kind === 'hide') {
-        requestHide((results ?? []).find((v) => v.id === id));
         return;
       }
       if (kind === 'metadata') {
@@ -75,13 +69,7 @@ export function SearchPage() {
         await reSearch();
         return;
       }
-      if (kind === 'deletevideo') {
-        await deleteVideo(id);
-        showToast('Video cancellato definitivamente.', 'success');
-        await reSearch();
-        return;
-      }
-      if (kind === 'unhide') await setHidden(id, false);
+      if (kind === 'hide' || kind === 'unhide') await setHidden(id, kind === 'hide');
       await reSearch();
     } catch (e) {
       setError(e.message);
@@ -140,7 +128,6 @@ export function SearchPage() {
         </div>
         </>
       )}
-      {modal}
     </>
   );
 }

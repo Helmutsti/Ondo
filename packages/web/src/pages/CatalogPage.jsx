@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Star, SquareCheck, LayoutGrid, List, CloudDownload, FileDown, ListPlus, EyeOff, Eye, X, Archive, CheckCheck } from 'lucide-react';
-import { listVideos, listSources, listProfiles, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
+import { listVideos, listSources, listProfiles, setHidden, setFavorite, triggerJob, refreshMetadata } from '../api/client.js';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { ProblemGroups } from '../components/ProblemGroups.jsx';
 import { SkeletonGrid, SkeletonRows } from '../components/Skeletons.jsx';
 import { useActivity } from '../lib/activityStore.js';
-import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
 import { startDownload, startBulkDownload } from '../lib/downloadActions.js';
-import { LIBRARY_VIEWS, countViews, viewByValue, isLost, isSaved } from '../lib/libraryFilters.js';
+import { countViews, viewByValue, visibleViews, isLost, isSaved } from '../lib/libraryFilters.js';
+import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 import { statusColor } from '../lib/status.js';
 import { addToQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
@@ -28,7 +28,8 @@ function loadLayout() {
 // lasciati. "Nascosti" sostituisce la vecchia pagina Archiviati.
 export function CatalogPage() {
   const [params, setParams] = useSearchParams();
-  const view = viewByValue(params.get('vista'));
+  const showHidden = useShowHiddenFilter();
+  const view = viewByValue(params.get('vista'), showHidden);
   const sort = params.get('ordine') ?? 'uploadDate';
   const creator = params.get('creator') ?? '';
   const source = params.get('fonte') ?? '';
@@ -43,7 +44,6 @@ export function CatalogPage() {
   const [selected, setSelected] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const lastClicked = useRef(null);
-  const { requestHide, modal } = useHideWithPrompt({ onDone: reload, onError: setError });
   useTitle('Libreria');
 
   function reload() {
@@ -186,10 +186,6 @@ export function CatalogPage() {
         await startDownload(id, { triggerJob, onSettled: reload, title });
         return;
       }
-      if (kind === 'hide') {
-        requestHide(filtered.find((v) => v.id === id));
-        return;
-      }
       if (kind === 'metadata') {
         await refreshMetadata(id);
         reload();
@@ -200,14 +196,9 @@ export function CatalogPage() {
         reload();
         return;
       }
-      if (kind === 'deletevideo') {
-        await deleteVideo(id);
-        showToast('Video cancellato definitivamente.', 'success');
-        reload();
-        return;
-      }
       // 'refresh' (es. dopo «Ignora per sempre») ricarica soltanto.
-      if (kind === 'unhide') await setHidden(id, false);
+      // Nascondi / Mostra di nuovo: solo il flag, il file resta dov'è.
+      if (kind === 'hide' || kind === 'unhide') await setHidden(id, kind === 'hide');
       reload();
     } catch (e) {
       setError(e.message);
@@ -238,7 +229,7 @@ export function CatalogPage() {
       {error && <div className="notice error">{error}</div>}
 
       <div className="chips">
-        {LIBRARY_VIEWS.map((o) => (
+        {visibleViews(showHidden).map((o) => (
           <div
             key={o.value}
             className={`chip${view.value === o.value ? ' active' : ''}`}
@@ -341,7 +332,6 @@ export function CatalogPage() {
           <button className="bulk-close" onClick={exitSelect} aria-label="Chiudi selezione" title="Chiudi (Esc)"><X size={16} /></button>
         </div>
       )}
-      {modal}
     </>
   );
 }

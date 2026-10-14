@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MoreVertical, ExternalLink, CircleSlash, Download, Eye, EyeOff, Maximize2, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
-import { getVideo, listVideos, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
+import { getVideo, listVideos, setHidden, setFavorite, triggerJob, refreshMetadata } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
 import { BackLink } from '../components/BackLink.jsx';
@@ -10,7 +10,6 @@ import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { ignoreWithConfirm } from '../lib/ignoreAction.js';
 import { useActivity } from '../lib/activityStore.js';
 import { actionsFor } from '../lib/reviewActions.js';
-import { useHideWithPrompt } from '../hooks/useHideWithPrompt.jsx';
 import { useTitle } from '../hooks/useTitle.js';
 import { startDownload } from '../lib/downloadActions.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial, formatBytes, formatBitrate } from '../lib/format.js';
@@ -119,8 +118,6 @@ export function VideoDetailPage() {
   // Ricalcolo automatico a ogni cambio di video (loadRelated cambia con `video`).
   useEffect(() => { loadRelated(); }, [loadRelated]);
 
-  const { requestHide, modal } = useHideWithPrompt({ onDone: reload, onError: setError });
-
   async function handleAction(kind, label) {
     try {
       if (kind === 'download') {
@@ -128,7 +125,8 @@ export function VideoDetailPage() {
         return;
       }
       if (kind === 'hide') {
-        requestHide(video);
+        await setHidden(id, true);
+        reload();
         return;
       }
       if (kind === 'metadata') {
@@ -165,10 +163,6 @@ export function VideoDetailPage() {
         await startDownload(rid, { triggerJob, onSettled: reload, title: target?.title });
         return;
       }
-      if (kind === 'hide') {
-        requestHide(target);
-        return;
-      }
       if (kind === 'metadata') {
         await refreshMetadata(rid);
         reload();
@@ -179,13 +173,7 @@ export function VideoDetailPage() {
         reload();
         return;
       }
-      if (kind === 'deletevideo') {
-        await deleteVideo(rid);
-        showToast('Video cancellato definitivamente.', 'success');
-        reload();
-        return;
-      }
-      if (kind === 'unhide') await setHidden(rid, false);
+      if (kind === 'hide' || kind === 'unhide') await setHidden(rid, kind === 'hide');
       reload();
     } catch (e) {
       setError(e.message);
@@ -199,10 +187,9 @@ export function VideoDetailPage() {
     }
   }
 
-  // Nascondi: stesso comportamento della card (non è distruttivo, niente
-  // conferma); per gli scaricati chiede se tenere il file.
+  // Nascondi: toglie il video dalla libreria e basta (il file resta).
   function handleArchive() {
-    requestHide(video);
+    handleAction('hide');
   }
 
   // Preferito (M43 era limitato al menu ⋮ di VideoCard): estensione al
@@ -580,7 +567,6 @@ export function VideoDetailPage() {
           </div>
         )}
       </div>
-      {modal}
     </>
   );
 }

@@ -6,6 +6,7 @@ import { confirmDialog } from '../lib/dialog.js';
 import { showToast } from '../lib/toast.js';
 import { useMiniPlayerEnabled, setMiniPlayerEnabled, useAutoplayOnOpen, setAutoplayOnOpen } from '../lib/playerStore.js';
 import { useDiscreet, setDiscreetMode } from '../lib/discreetStore.js';
+import { useShowHiddenFilter, setShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 
 const DISCREET_OPTIONS = [
   { value: 'off', title: 'Spenta', sub: 'Copertine, foto e testi visibili come sempre.' },
@@ -353,24 +354,56 @@ export function SettingsPage() {
   );
 }
 
-// I video «ignorati per sempre»: le sincronizzazioni non li reinseriscono.
-// Togliendoli da qui, al prossimo controllo della fonte rientrano (se la
-// playlist li elenca ancora).
+// Nascosti e ignorati, uno sotto l'altro: le due maniere di togliersi un video
+// dai piedi.
+// - Il filtro «Nascosti» si può togliere dalla Libreria e dai creator.
+// - I video ignorati sono già cancellati dalla libreria: di loro resta solo
+//   quanto serve a non riprenderli. «Sblocca» li toglie dall'elenco, e al
+//   prossimo controllo della fonte rientrano da riscaricare, se ci sono ancora.
 function IgnoredSection() {
+  const showHidden = useShowHiddenFilter();
   const [list, setList] = useState(null);
   useEffect(() => { listIgnored().then(setList).catch(() => setList([])); }, []);
-  async function restore(id) {
+  async function restore(x) {
+    const ok = await confirmDialog({
+      title: 'Sbloccare il video?',
+      message: `"${x.title ?? x.id}" tornerà in libreria al prossimo controllo della sua fonte, come un video nuovo da scaricare. Il file era stato cancellato: va riscaricato, e non sempre si può (se nel frattempo è sparito da YouTube o dalla playlist non tornerà).`,
+      confirmLabel: 'Sblocca'
+    });
+    if (!ok) return;
     try {
-      setList(await unignoreVideo(id));
-      showToast('Non più ignorato: rientra al prossimo controllo della fonte.', 'success');
+      setList(await unignoreVideo(x.id));
+      showToast('Sbloccato: rientra al prossimo controllo della fonte.', 'success');
     } catch (e) {
       showToast(e.message, 'error');
     }
   }
   return (
     <div className="d-desc">
-      <span className="label"><CircleSlash size={15} style={{ verticalAlign: -2 }} /> Video ignorati</span>
-      I video che hai scelto di ignorare per sempre: i controlli delle fonti non li reinseriscono in libreria.
+      <span className="label"><EyeOff size={15} style={{ verticalAlign: -2 }} /> Nascosti e ignorati</span>
+      <div className="setting-row">
+        <div className="setting-text">
+          <div className="setting-title">Filtro «Nascosti»</div>
+          <div className="setting-sub">
+            Mostra il filtro «Nascosti» nella Libreria e nella pagina dei creator. Spento, i video nascosti non compaiono da nessuna parte (restano in libreria, con i loro file). La preferenza è salvata in questo browser.
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showHidden}
+          className={`switch${showHidden ? ' on' : ''}`}
+          onClick={() => setShowHiddenFilter(!showHidden)}
+          aria-label="Mostra o nascondi il filtro Nascosti"
+        >
+          <span className="switch-knob" />
+        </button>
+      </div>
+
+      <div className="setting-title" style={{ marginTop: 18 }}><CircleSlash size={15} /> Video ignorati</div>
+      <div className="setting-sub">
+        Cancellati dalla libreria con i loro file: ne resta solo quanto serve a non riprenderli dalle fonti. Sbloccandone uno, rientra al prossimo controllo della fonte da riscaricare, se c'è ancora.
+      </div>
       {list === null ? null : list.length === 0 ? (
         <div className="hint" style={{ marginTop: 10 }}>Nessun video ignorato.</div>
       ) : (
@@ -381,7 +414,7 @@ function IgnoredSection() {
                 <b className="discreet-text">{x.title ?? x.id}</b>
                 <span className="discreet-text">{[x.channelName, new Date(x.at).toLocaleDateString('it-IT')].filter(Boolean).join(' · ')}</span>
               </div>
-              <button className="btn small" onClick={() => restore(x.id)}>Non ignorare più</button>
+              <button className="btn small" onClick={() => restore(x)}>Sblocca</button>
             </div>
           ))}
         </div>

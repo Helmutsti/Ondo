@@ -22,7 +22,7 @@ import { setVideoHidden, setVideoFavorite } from './services/decisionService.js'
 import { prepareSingleVideoDownload, analyzeVideoDownload } from './services/singleVideoService.js';
 import { getRawMetadata, refreshVideoMetadata } from './services/metadataService.js';
 import { searchVideos } from './services/searchService.js';
-import { reorganizeLibrary, deleteVideoFile, deleteVideoCompletely, removeVideoFromLibrary } from './services/libraryService.js';
+import { reorganizeLibrary, deleteVideoFile, removeVideoFromLibrary } from './services/libraryService.js';
 import { syncChannelAvatars, fetchChannelAvatar } from './services/channelAvatarService.js';
 import {
   listProfiles, getProfile, listProfileVideos, getProfileIdForChannel, getCreatorIndex, renameProfile, setProfilePinned,
@@ -220,7 +220,6 @@ export {
   // cancella solo il file scaricato (M30), mantenendo la scheda in libreria
   deleteVideoFile,
   // cancellazione totale e irreversibile (punto 11): scheda+file+copertina+metadati
-  deleteVideoCompletely,
   // M86 — «Togli dalla libreria»: la scheda esce, i file si cancellano solo se
   // richiesto e senza il gate "prima archivialo" (era `Library::remove`)
   removeVideoFromLibrary,

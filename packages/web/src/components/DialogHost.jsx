@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { registerDialogHost } from '../lib/dialog.js';
 
-// Renderizza il modale alert/confirm attivo (se presente), stesso markup di
-// "Vuoi tenere il video?" (useHideWithPrompt) — montato una sola volta in
-// Layout così è disponibile ovunque tramite confirmDialog()/alertDialog().
+// Renderizza il modale alert/confirm attivo (se presente) — montato una sola
+// volta in Layout così è disponibile ovunque tramite confirmDialog()/alertDialog().
 export function DialogHost() {
   const [state, setState] = useState(null);
   // Selezione corrente del dialog a radio button (M56): resettata all'apertura

@@ -5,8 +5,8 @@
 //
 // Due informazioni indipendenti per video, come nel core: se ce l'hai
 // (download) e se è ancora su YouTube (presence). "Nascosto" toglie un video
-// da tutte le viste tranne la sua; "Spariti" li mostra comunque, perché è lì
-// che si vede il valore dell'archivio.
+// da tutte le viste tranne la sua, che si può togliere dalle Impostazioni
+// (lib/hiddenFilterStore.js).
 
 export const isLost = (v) => v.presence === 'removed' && v.download !== 'downloaded';
 export const isSaved = (v) => v.presence === 'removed' && v.download === 'downloaded';
@@ -20,13 +20,18 @@ export const LIBRARY_VIEWS = [
   // Un video sparito da YouTube sta in «Spariti», anche se un tentativo di
   // download è fallito: non è un problema da risolvere, non c'è più niente.
   { value: 'problemi', label: 'Problemi', dot: 'failed', fn: (v) => !v.hidden && v.download === 'failed' && v.presence !== 'removed' },
-  { value: 'spariti', label: 'Spariti da YouTube', dot: 'removed', fn: (v) => v.presence === 'removed' },
+  { value: 'spariti', label: 'Spariti da YouTube', dot: 'removed', fn: (v) => !v.hidden && v.presence === 'removed' },
   { value: 'preferiti', label: 'Preferiti', star: true, fn: (v) => !v.hidden && !!v.favorite },
   { value: 'nascosti', label: 'Nascosti', dot: 'hidden', fn: (v) => !!v.hidden }
 ];
 
-export function viewByValue(value) {
-  return LIBRARY_VIEWS.find((x) => x.value === value) ?? LIBRARY_VIEWS[0];
+/** Le viste da mostrare: senza il filtro Nascosti se è stato tolto. */
+export function visibleViews(showHidden) {
+  return showHidden ? LIBRARY_VIEWS : LIBRARY_VIEWS.filter((x) => x.value !== 'nascosti');
+}
+
+export function viewByValue(value, showHidden = true) {
+  return visibleViews(showHidden).find((x) => x.value === value) ?? LIBRARY_VIEWS[0];
 }
 
 export function countViews(videos) {

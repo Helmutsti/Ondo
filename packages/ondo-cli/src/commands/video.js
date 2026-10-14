@@ -125,19 +125,6 @@ export function videoCommand() {
     });
 
   cmd
-    .command('delete <id>')
-    .description('cancella DEFINITIVAMENTE scheda, file e metadati (il video deve essere già nascosto/archiviato)')
-    .option('-y, --yes', 'salta la conferma', false)
-    .action(async (id, opts) => {
-      if (!opts.yes && !(await confirm(`Cancellare DEFINITIVAMENTE "${id}"? Scrivi "sì" per confermare: `))) {
-        console.log('Annullato.');
-        return;
-      }
-      await core.deleteVideoCompletely(id);
-      console.log(`${style.green('✓')} cancellato definitivamente`);
-    });
-
-  cmd
     .command('refresh-metadata <id>')
     .description('ri-scarica metadati e copertina di un video')
     .action(async (id) => {
