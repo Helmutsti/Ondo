@@ -93,7 +93,7 @@ Sotto il punto di montaggio, con `<id>` codificato con `encodeURIComponent`:
 
 | Rotta | Contenuto |
 |---|---|
-| `GET <id>/info.json` | `{ duration, container, mimeType, videoCodec, audioCodec, width, height, fps, renditions[], masterPlaylist }` |
+| `GET <id>/info.json` | `{ duration, container, mimeType, videoCodec, audioCodec, width, height, fps, renditions[], masterPlaylist, audioPlaylist }` |
 | `GET <id>/master.m3u8` | Playlist principale, una variante per qualità. La prima è quella di partenza. |
 | `GET <id>/<qualità>/index.m3u8` | Playlist VOD completa di una qualità. |
 | `GET <id>/<qualità>/<n>.ts` | Segmento `n` (MPEG-TS, H.264 + AAC), prodotto se non è in cache. |
