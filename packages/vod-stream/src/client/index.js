@@ -50,6 +50,9 @@ export function canPlayDirect(video, info) {
  * @param {object} [o.hlsConfig]     opzioni in più per hls.js
  * @param {(mode: 'direct'|'hls', url: string) => void} [o.onModeChange]
  * @param {(quality: string) => void} [o.onQualityChange]
+ * @param {(e: { mode: string, code: number|null }) => void} [o.onError]
+ *        la riproduzione è fallita e non c'è un ripiego (file vuoto o
+ *        rovinato, conversione impossibile)
  * @returns {Promise<{ mode: string, quality: string, qualities: string[], info: object|null,
  *   setQuality: (q: string) => Promise<void>, destroy: () => void }>}
  */
@@ -86,6 +89,12 @@ export async function attachVideo(video, o) {
     state.hls = null;
   }
 
+  // Nessun ripiego possibile: lo dice a chi usa il player.
+  function fail() {
+    if (state.destroyed) return;
+    o.onError?.({ mode: state.mode, code: video.error?.code ?? null });
+  }
+
   function seekOnceReady(t) {
     if (!(t > 0)) return;
     on('loadedmetadata', () => { video.currentTime = t; }, { once: true });
@@ -108,7 +117,7 @@ export async function attachVideo(video, o) {
     setMode('direct', o.directUrl, quality);
     // Ripiego: canPlayType a volte promette più di quanto il browser mantenga.
     // Se il file dà errore si passa a HLS dal punto in cui si era.
-    if (!masterUrl) return;
+    if (!masterUrl) { on('error', fail, { once: true }); return; }
     let done = false;
     const fallback = () => {
       if (done || state.destroyed || state.mode !== 'direct') return;
@@ -134,6 +143,7 @@ export async function attachVideo(video, o) {
   async function useHls(startTime, url, quality) {
     if (nativeHls) {
       video.src = url;
+      on('error', fail, { once: true });
       seekOnceReady(startTime);
       setMode('hls', url, quality);
       return;
@@ -149,6 +159,7 @@ export async function attachVideo(video, o) {
         maxBufferLength: 30,
         ...o.hlsConfig
       });
+      hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) fail(); });
       hls.loadSource(url);
       hls.attachMedia(video);
       state.hls = hls;

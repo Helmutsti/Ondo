@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Maximize2, Play, Eye, Headphones } from 'lucide-react';
+import { X, Maximize2, Play, Eye, Headphones, FileWarning } from 'lucide-react';
 import {
   usePlayer, useMiniPlayerEnabled,
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
@@ -61,6 +61,8 @@ export function MiniPlayer() {
   const streamRef = useRef(null);
   const [stream, setStream] = useState({ quality: null, qualities: [], info: null });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Il file non si riesce a riprodurre in nessun modo (vuoto, rovinato).
+  const [failed, setFailed] = useState(false);
   const floatHomeRef = useRef(null);
 
   // Nodo di montaggio stabile: creato una volta sola, mai ricreato.
@@ -172,6 +174,7 @@ export function MiniPlayer() {
     // Animazione di caricamento: all'avvio, dopo un salto, quando la rete o la
     // conversione non tengono il passo. Mai in pausa.
     const stopWatching = watchBuffering(el, setBuffering);
+    setFailed(false);
     const sync = (p) => setStream({ quality: p.quality, qualities: p.qualities, info: p.info });
     attachVideo(el, {
       infoUrl: apiUrl(`/media/stream/${encodeURIComponent(videoId)}/info.json`),
@@ -179,7 +182,8 @@ export function MiniPlayer() {
       quality: loadQuality(),
       loadHls: () => import('hls.js').then((m) => m.default),
       // Anche i ripieghi automatici (file illeggibile → HLS) cambiano la qualità.
-      onQualityChange: () => { if (player) sync(player); }
+      onQualityChange: () => { if (player) sync(player); },
+      onError: () => { setFailed(true); setSettingsOpen(false); }
     }).then((p) => {
       if (cancelled) { p.destroy(); return; }
       player = p;
@@ -236,7 +240,7 @@ export function MiniPlayer() {
   // Copertina "clicca per riprodurre": mai sopra un video che sta andando (se
   // il play parte da fuori — tasti del sistema, cuffie, ripiego su HLS — e
   // `started` resta indietro, coprirebbe l'immagine con l'audio che scorre).
-  const coverShown = docked && !started && !playing;
+  const coverShown = docked && !started && !playing && !failed;
 
   const portalContent = current && (
     <>
@@ -286,7 +290,14 @@ export function MiniPlayer() {
           <span className="player-cover-play"><Play size={28} fill="currentColor" /></span>
         </button>
       )}
-      {(floating || started || playing) && (
+      {failed && (
+        <div className="player-error" role="alert">
+          <FileWarning size={30} />
+          <strong>Questo video non si riesce a riprodurre</strong>
+          <span>Il file è vuoto o rovinato. Puoi riscaricarlo dal menu ⋮ qui sotto.</span>
+        </div>
+      )}
+      {!failed && (floating || started || playing) && (
         <PlayerControls
           video={videoNode}
           container={mountRef.current}
@@ -296,7 +307,7 @@ export function MiniPlayer() {
           setSettingsOpen={setSettingsOpen}
         />
       )}
-      {settingsOpen && !floating && (
+      {settingsOpen && !floating && !failed && (
         <PlayerSettings
           video={videoNode}
           quality={stream.quality}
