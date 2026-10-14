@@ -11,6 +11,7 @@ import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
 import { startDownload, startBulkDownload } from '../lib/downloadActions.js';
 import { countViews, viewByValue, visibleViews } from '../lib/libraryFilters.js';
 import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
+import { useIncremental } from '../hooks/useIncremental.js';
 import { statusColor } from '../lib/status.js';
 import { addToQueue } from '../lib/queueStore.js';
 import { showToast } from '../lib/toast.js';
@@ -85,6 +86,8 @@ export function CatalogPage() {
     let list = scoped.filter(view.fn);
     return sortVideos(list, sort);
   }, [scoped, view, sort]);
+  // Si allunga scorrendo (hooks/useIncremental.js); da capo a ogni cambio di vista o filtro.
+  const page = useIncremental(filtered, `${view.value}|${sort}|${creator}|${source}|${layout}`);
 
 
   // Cambiando vista o filtri la selezione riparte da zero: selezionare qui e
@@ -268,8 +271,9 @@ export function CatalogPage() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">Nessun video in questa vista.</div>
       ) : (
+        <>
         <div className={layout === 'row' ? 'row-list' : 'grid'}>
-          {filtered.map((v) => (
+          {page.visible.map((v) => (
             <VideoCard
               key={v.id}
               video={v}
@@ -281,6 +285,8 @@ export function CatalogPage() {
             />
           ))}
         </div>
+        {page.hasMore && <div ref={page.sentinelRef} className="list-more" aria-hidden="true"><span className="spinner" /></div>}
+        </>
       )}
 
       {selectMode && (

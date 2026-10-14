@@ -1944,6 +1944,9 @@ html:not([data-discreet]) .thumb.downloading img { transform: scale(1.15); }
   font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.55);
 }
 
+/* Fondo di un elenco che si allunga scorrendo (hooks/useIncremental.js). */
+.list-more { display: flex; justify-content: center; padding: 24px 0 8px; }
+
 /* Menu ⋮ su schermo stretto: pannello dal basso, come le app video. Aperto
    sotto il pulsante finiva dietro la barra in basso o oltre il bordo dello
    schermo (sulla scheda del video il ⋮ va a capo a sinistra e il menu, ancorato

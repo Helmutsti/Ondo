@@ -21,6 +21,7 @@ import { notifyProfilesChanged } from '../lib/profileEvents.js';
 import { statusColor } from '../lib/status.js';
 import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 import { countViews, viewByValue, visibleViews } from '../lib/libraryFilters.js';
+import { useIncremental } from '../hooks/useIncremental.js';
 
 
 // Profilo creator: chi è (foto, nome), di cosa è fatto (canali, fonti) e i suoi
@@ -139,6 +140,7 @@ export function CreatorPage() {
   const shown = useMemo(() => {
     return sortVideos(byChannel.filter(viewByValue(filter, showHidden).fn), sort);
   }, [byChannel, filter, sort, showHidden]);
+  const page = useIncremental(shown, `${id}|${filter}|${sort}|${channel}`);
 
   if (error && !profile) return <div className="notice error">{error}</div>;
   if (!profile) return <div style={{ marginTop: 160 }}><SkeletonGrid count={6} /></div>;
@@ -279,9 +281,10 @@ export function CreatorPage() {
         <div className="empty-state">Nessun video in questa vista.</div>
       ) : (
         <div className="grid">
-          {shown.map((v) => <VideoCard key={v.id} video={v} onDecide={handleAction} />)}
+          {page.visible.map((v) => <VideoCard key={v.id} video={v} onDecide={handleAction} />)}
         </div>
       )}
+      {videos && page.hasMore && <div ref={page.sentinelRef} className="list-more" aria-hidden="true"><span className="spinner" /></div>}
 
       {modal === 'photo' && <PhotoModal profile={profile} onClose={() => setModal(null)} onSaved={applyUpdate} />}
       {modal === 'merge' && <MergeModal profile={profile} onClose={() => setModal(null)} onSaved={applyUpdate} />}
