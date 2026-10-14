@@ -9,7 +9,7 @@ import { useActivity } from '../lib/activityStore.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { SORT_OPTIONS, sortVideos } from '../lib/sort.js';
 import { startDownload, startBulkDownload } from '../lib/downloadActions.js';
-import { countViews, viewByValue, visibleViews, isLost, isSaved } from '../lib/libraryFilters.js';
+import { countViews, viewByValue, visibleViews } from '../lib/libraryFilters.js';
 import { useShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 import { statusColor } from '../lib/status.js';
 import { addToQueue } from '../lib/queueStore.js';
@@ -33,7 +33,6 @@ export function CatalogPage() {
   const sort = params.get('ordine') ?? 'uploadDate';
   const creator = params.get('creator') ?? '';
   const source = params.get('fonte') ?? '';
-  const lostOnly = params.get('persi') === '1';
 
   const [videos, setVideos] = useState(null);
   const [sources, setSources] = useState([]);
@@ -62,7 +61,6 @@ export function CatalogPage() {
     setParams((prev) => {
       const next = new URLSearchParams(prev);
       if (value) next.set(key, value); else next.delete(key);
-      if (key === 'vista') next.delete('persi');
       return next;
     }, { replace: true });
   }
@@ -85,18 +83,13 @@ export function CatalogPage() {
 
   const filtered = useMemo(() => {
     let list = scoped.filter(view.fn);
-    if (view.value === 'spariti' && lostOnly) list = list.filter(isLost);
     return sortVideos(list, sort);
-  }, [scoped, view, lostOnly, sort]);
+  }, [scoped, view, sort]);
 
-  const removedStats = useMemo(() => {
-    const removed = scoped.filter((v) => v.presence === 'removed');
-    return { total: removed.length, saved: removed.filter(isSaved).length, lost: removed.filter(isLost).length };
-  }, [scoped]);
 
   // Cambiando vista o filtri la selezione riparte da zero: selezionare qui e
   // agire su video che non si vedono più sarebbe una sorpresa.
-  useEffect(() => { setSelected(new Set()); lastClicked.current = null; }, [view.value, creator, source, lostOnly]);
+  useEffect(() => { setSelected(new Set()); lastClicked.current = null; }, [view.value, creator, source]);
 
   useEffect(() => {
     if (!selectMode) return undefined;
@@ -258,23 +251,13 @@ export function CatalogPage() {
         </select>
       </div>
 
-      {view.value === 'spariti' && removedStats.total > 0 && (
+      {(view.value === 'salvati' || view.value === 'persi') && filtered.length > 0 && (
         <div className="banner">
           <Archive size={18} />
           <div className="banner-text">
-            <b>{removedStats.total} video non sono più su YouTube</b>
-            <span>
-              {removedStats.saved === 0
-                ? 'Nessuno era stato scaricato: di questi resta solo la scheda con i metadati.'
-                : `${removedStats.saved === 1 ? 'Uno l\'hai salvato' : `${removedStats.saved} li hai salvati`} in tempo.`}
-              {removedStats.saved > 0 && removedStats.lost > 0 && ` ${removedStats.lost} non erano stati scaricati e sono persi: resta solo la scheda con i metadati.`}
-            </span>
+            <b>{view.value === 'salvati' ? 'Su YouTube non ci sono più, ma li hai salvati in tempo' : 'Spariti da YouTube prima che li scaricassi'}</b>
+            <span>{view.value === 'salvati' ? 'Il file è nella tua libreria: è l\'unica copia rimasta.' : 'Non si possono più scaricare: di questi resta solo la scheda con i metadati.'}</span>
           </div>
-          {removedStats.saved > 0 && removedStats.lost > 0 && (
-            <button className="btn" onClick={() => setParam('persi', lostOnly ? null : '1')}>
-              {lostOnly ? 'Mostra tutti' : 'Mostra solo i persi'}
-            </button>
-          )}
         </div>
       )}
 

@@ -22,7 +22,10 @@ export const LIBRARY_VIEWS = [
   // Un video sparito da YouTube sta in «Spariti», anche se un tentativo di
   // download è fallito: non è un problema da risolvere, non c'è più niente.
   { value: 'problemi', label: 'Problemi', dot: 'failed', fn: (v) => !v.hidden && v.download === 'failed' && v.presence !== 'removed' },
-  { value: 'spariti', label: 'Spariti da YouTube', dot: 'removed', fn: (v) => !v.hidden && v.presence === 'removed' },
+  // Spariti da YouTube, divisi in due: quelli di cui resta solo la scheda e
+  // quelli scaricati in tempo (il valore dell'archivio).
+  { value: 'persi', label: 'Persi', dot: 'removed', fn: (v) => !v.hidden && isLost(v) },
+  { value: 'salvati', label: 'Salvati', dot: 'downloaded', fn: (v) => !v.hidden && isSaved(v) },
   { value: 'nascosti', label: 'Nascosti', dot: 'hidden', fn: (v) => !!v.hidden }
 ];
 
