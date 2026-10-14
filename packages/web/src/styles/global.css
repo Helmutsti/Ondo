@@ -1924,6 +1924,20 @@ html:not([data-discreet]) .thumb.downloading img { transform: scale(1.15); }
 .global-player:fullscreen { width: 100%; height: 100%; }
 .global-player:-webkit-full-screen { width: 100%; height: 100%; }
 
+/* «Mostra» sul player: le copertine del player tornano nitide, scavalcando la
+   regola della censura su tutte le <img>. Lo sfondo del solo audio resta
+   sfocato com'è per disegno. */
+html[data-discreet] .player-audio.revealed img,
+html[data-discreet] .player-cover.revealed img { filter: none !important; transform: none; }
+html[data-discreet] .player-audio.revealed .player-audio-bg { filter: blur(24px) brightness(.45) !important; }
+
+/* «Nascondi» (dopo «Mostra»): visibile insieme ai comandi del player, o
+   sempre se il video è fermo sulla copertina. */
+.discreet-conceal { opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.global-player:has(.pc.pc-on) .discreet-conceal,
+.global-player:not(:has(.pc)) .discreet-conceal,
+.discreet-conceal:focus-visible { opacity: 1; pointer-events: auto; }
+
 /* File che non si riproduce in nessun modo: lo si dice, invece di un player muto. */
 .player-error {
   position: absolute; inset: 0; z-index: 8;

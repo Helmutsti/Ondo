@@ -69,6 +69,12 @@ export function revealPlayer(id) {
   notify();
 }
 
+/** Rimette il velo sul player (il contrario di «Mostra»), senza cambiare pagina. */
+export function concealPlayer() {
+  STATE.revealedId = null;
+  notify();
+}
+
 export function useDiscreet() {
   const read = () => ({ mode: STATE.mode, revealedId: STATE.revealedId });
   const [snap, setSnap] = useState(read);

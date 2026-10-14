@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Maximize2, Play, Eye, Headphones, FileWarning } from 'lucide-react';
+import { X, Maximize2, Play, Eye, EyeOff, Headphones, FileWarning } from 'lucide-react';
 import {
   usePlayer, useMiniPlayerEnabled,
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
@@ -11,7 +11,7 @@ import { useMediaSession } from '../hooks/useMediaSession.js';
 import { PlayerControls, PlayerSettings } from './PlayerControls.jsx';
 import { attachVideo, watchBuffering } from 'vod-stream/client';
 import { apiUrl } from '../lib/apiBase.js';
-import { useDiscreet, revealPlayer } from '../lib/discreetStore.js';
+import { useDiscreet, revealPlayer, concealPlayer } from '../lib/discreetStore.js';
 
 // Mini-player desktop-only (scelta di scope M54): su schermo piccolo vale il
 // comportamento attuale (il video si ferma al cambio pagina), così non resta
@@ -241,6 +241,10 @@ export function MiniPlayer() {
   // il play parte da fuori — tasti del sistema, cuffie, ripiego su HLS — e
   // `started` resta indietro, coprirebbe l'immagine con l'audio che scorre).
   const coverShown = docked && !started && !playing && !failed;
+  // «Mostra» con la censura immagini: vale anche per le copertine che il
+  // player disegna al posto del video (solo audio, «riproduci»), non solo per
+  // il velo sopra il video.
+  const revealed = !!current && discreet.revealedId === current.id;
 
   const portalContent = current && (
     <>
@@ -261,7 +265,7 @@ export function MiniPlayer() {
           per il solo video corrente. */}
       {/* Solo audio: la copertina al posto dell'immagine, che non c'è. */}
       {stream.quality === 'audio' && (
-        <div className="player-audio">
+        <div className={`player-audio${revealed ? ' revealed' : ''}`}>
           {current.thumbnailUrl && <img className="player-audio-bg" src={current.thumbnailUrl} alt="" />}
           {current.thumbnailUrl && <img className="player-audio-art" src={current.thumbnailUrl} alt="" />}
           <span className="player-audio-label"><Headphones size={13} />Solo audio</span>
@@ -279,13 +283,20 @@ export function MiniPlayer() {
           </button>
         </>
       )}
+      {/* Già scoperto: «Nascondi» rimette subito il velo. Compare con i comandi
+          del player, per non restare sopra il video mentre lo si guarda. */}
+      {discreet.mode !== 'off' && revealed && (
+        <button className="discreet-reveal discreet-conceal" onClick={concealPlayer} title="Nascondi di nuovo l'immagine di questo video">
+          <EyeOff size={13} />Nascondi
+        </button>
+      )}
       {buffering && (docked ? started : true) && (
         <div className="player-buffering" aria-label="Caricamento" role="status">
           <span className="player-buffering-ring" />
         </div>
       )}
       {coverShown && (
-        <button className="player-cover" onClick={() => videoRef.current?.play()} aria-label="Riproduci">
+        <button className={`player-cover${revealed ? ' revealed' : ''}`} onClick={() => videoRef.current?.play()} aria-label="Riproduci">
           {current.thumbnailUrl && <img src={current.thumbnailUrl} alt="" />}
           <span className="player-cover-play"><Play size={28} fill="currentColor" /></span>
         </button>
