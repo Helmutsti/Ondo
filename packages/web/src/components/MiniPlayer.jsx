@@ -221,9 +221,17 @@ export function MiniPlayer() {
     streamRef.current?.setQuality(q);
   }
 
-  // X del riquadro flottante: ferma la riproduzione e chiude.
+  // X del riquadro flottante: ferma la riproduzione e chiude. Se però si è
+  // sulla pagina del video (riquadro aperto con «minimizza») il player non va
+  // buttato: la pagina non lo ri-registrerebbe e resterebbe uno slot vuoto.
+  // Lì la X lo mette in pausa e lo riporta nella pagina, dov'era.
   function handleClose() {
     videoRef.current?.pause();
+    if (onOwnPage) {
+      setMinimized(false);
+      setDetached(false);
+      return;
+    }
     clear();
   }
 

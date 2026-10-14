@@ -92,8 +92,10 @@ export function VideoDetailPage() {
     const wantPlay = (autoplayOnOpen || !!location.state?.autoplay) && !autoplayedRef.current;
     if (wantPlay) autoplayedRef.current = true;
     setCurrent(video, { play: wantPlay });
+    // `!player.current`: se il player globale viene chiuso mentre si è qui,
+    // la pagina se lo riprende (senza autoplay), invece di restare vuota.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [video?.id, video?.videoUrl, location.state]);
+  }, [video?.id, video?.videoUrl, location.state, !player.current]);
 
   // Velocità, Picture in Picture, minimizza e schermo intero stanno nei
   // comandi sopra il video (components/PlayerControls.jsx).
