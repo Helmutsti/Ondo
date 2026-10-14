@@ -1206,7 +1206,10 @@ html[data-discreet-peek] .global-player:hover .discreet-veil { display: none; }
 }
 .discreet-reveal:hover { background: rgba(0, 0, 0, .8); }
 .mini-float-home .discreet-reveal { top: 36px; }
-.mini-float-home .gp-chrome, .player-buffering { z-index: 4; }
+.player-buffering { z-index: 4; }
+/* Sopra i comandi del player (.pc, z-index 5). */
+.mini-float-home .gp-chrome { z-index: 6; }
+.discreet-reveal { z-index: 7; }
 
 /* Livello 2: titoli, nomi di canali e fonti, descrizioni, tag, storico. */
 html[data-discreet="all"] .discreet-text {
@@ -1775,10 +1778,6 @@ a.profile-chip:hover { border-color: var(--border); }
 .ignored-text b { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ignored-text span { font-size: 11.5px; color: var(--faint); }
 /* Dettaglio video: velocità come menu, menu delle azioni rare */
-.speed-select { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 4px 0 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--ink2); }
-.speed-select select { background: transparent; border: none; color: var(--ink2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding-right: 4px; }
-.speed-select select:focus-visible { outline: 2px solid var(--accent); }
-.speed-select option { background: var(--panel); }
 .detail-menu { right: 0; left: auto; min-width: 220px; }
 .search-hits { margin-bottom: 8px; } .search-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -1854,6 +1853,118 @@ a.profile-chip:hover { border-color: var(--border); }
    Ingrandita quanto basta per spingere la sfumatura fuori dal ritaglio (in
    modalità discreta ci pensa già lo scale(1.5) di quella regola). */
 html:not([data-discreet]) .thumb.downloading img { transform: scale(1.15); }
+
+/* ===== Comandi del player (components/PlayerControls.jsx) =====
+   Sopra il <video> al posto di quelli nativi. In basso barra e pulsanti su una
+   sfumatura; su touch anche play e ±10 s grandi al centro. Nascosti durante la
+   riproduzione dopo un attimo di inattività (anche il cursore). */
+.pc { position: absolute; inset: 0; z-index: 5; color: #fff; user-select: none; -webkit-user-select: none; }
+.pc:not(.pc-on) { cursor: none; }
+.pc-surface { position: absolute; inset: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.pc-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 32px 10px 4px;
+  background: linear-gradient(transparent, rgba(0,0,0,.78));
+  opacity: 0; pointer-events: none; transition: opacity .2s ease;
+}
+.pc-on .pc-bottom { opacity: 1; pointer-events: auto; }
+.pc-center { display: none; }
+.pc-btn {
+  position: relative; flex: none;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; color: #fff; cursor: pointer; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.pc-btn svg { filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+.pc-btn:hover { background: rgba(255,255,255,.12); }
+.pc-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pc-gear svg { transition: transform .2s ease; }
+.pc-gear.on svg { transform: rotate(40deg); }
+.pc-badge {
+  position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; font-weight: 700; line-height: 13px; padding: 0 3px; border-radius: 4px;
+  background: var(--accent); color: var(--accent-contrast);
+}
+.pc-row { display: flex; align-items: center; gap: 2px; }
+.pc-spacer { flex: 1; }
+.pc-time { margin-left: 6px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.pc-time-sep { opacity: .6; }
+.pc-volume { display: inline-flex; align-items: center; }
+.pc-volume input {
+  width: 0; opacity: 0; margin: 0; accent-color: #fff; cursor: pointer;
+  transition: width .15s ease, opacity .15s ease, margin .15s ease;
+}
+.pc-volume:hover input, .pc-volume:focus-within input { width: 72px; opacity: 1; margin: 0 6px 0 2px; }
+
+/* Barra: sottile, si ingrossa sotto il puntatore o mentre si trascina. */
+.pc-bar { position: relative; height: 18px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+.pc-bar:focus-visible { outline: none; }
+.pc-bar-track { position: relative; width: 100%; height: 3px; border-radius: 2px; background: rgba(255,255,255,.25); overflow: hidden; transition: height .1s ease; }
+.pc-bar:hover .pc-bar-track, .pc-bar.dragging .pc-bar-track, .pc-bar:focus-visible .pc-bar-track { height: 5px; }
+.pc-bar-buf { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,255,255,.4); }
+.pc-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); }
+.pc-bar-knob {
+  position: absolute; top: 50%; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 50%;
+  background: var(--accent); transform: scale(0); transition: transform .1s ease; pointer-events: none;
+}
+.pc-bar:hover .pc-bar-knob, .pc-bar.dragging .pc-bar-knob, .pc-bar:focus-visible .pc-bar-knob { transform: scale(1); }
+.pc-bar-tip {
+  position: absolute; bottom: 20px; transform: translateX(-50%);
+  padding: 2px 7px; border-radius: 5px; font-size: 12px; font-variant-numeric: tabular-nums;
+  background: rgba(0,0,0,.82); pointer-events: none; white-space: nowrap;
+}
+
+/* Doppio tocco ai lati: ±10 s. */
+.pc-flash {
+  position: absolute; top: 50%; width: 84px; height: 84px; margin-top: -42px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 12px; font-weight: 600; background: rgba(0,0,0,.45); pointer-events: none;
+  animation: pc-flash .6s ease forwards;
+}
+.pc-flash.left { left: 12%; }
+.pc-flash.right { right: 12%; }
+@keyframes pc-flash { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.1); } }
+
+/* Touch: comandi grandi al centro (la barra in basso resta). */
+@media (hover: none) {
+  .pc-center {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 40px;
+    background: rgba(0,0,0,.28); opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .pc-on .pc-center { opacity: 1; }
+  .pc-on .pc-center .pc-btn { pointer-events: auto; }
+  .pc-big { width: 66px; height: 66px; background: rgba(0,0,0,.45); }
+  .pc-skip { width: 50px; height: 50px; }
+  .pc-row > .pc-btn:first-child, .pc-volume input { display: none; }
+  .pc-bar-knob { transform: scale(1); }
+}
+
+/* Riquadro flottante: solo play, barra e tempo, più piccoli. */
+.pc-compact .pc-bottom { padding: 20px 6px 0; }
+.pc-compact .pc-btn { width: 32px; height: 32px; }
+.pc-compact .pc-time { font-size: 11.5px; }
+
+/* Menu dell'ingranaggio: sopra la barra, a destra (su telefono il pannello dal basso). */
+.pc-settings { top: auto; bottom: 58px; right: 12px; left: auto; min-width: 250px; max-height: calc(100% - 70px); overflow-y: auto; }
+.pc-settings .menu-item { white-space: nowrap; }
+.pc-menu-val { margin-left: auto; padding-left: 16px; font-size: 12px; color: var(--muted); }
+.pc-menu-check { width: 16px; display: inline-flex; flex: none; color: var(--accent); }
+.pc-menu-back { border-bottom: 1px solid var(--border2); border-radius: 7px 7px 0 0; margin-bottom: 4px; font-weight: 600; }
+
+/* Schermo intero sul contenitore, così i comandi restano i nostri. */
+.global-player:fullscreen { width: 100%; height: 100%; }
+.global-player:-webkit-full-screen { width: 100%; height: 100%; }
+
+/* Solo audio: copertina nitida su uno sfondo sfocato della stessa. */
+.player-audio { position: absolute; inset: 0; z-index: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; }
+.player-audio-bg { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); object-fit: cover; filter: blur(24px) brightness(.45); }
+.player-audio-art { position: relative; height: 62%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; box-shadow: 0 12px 36px rgba(0,0,0,.6); }
+.player-audio-label {
+  position: absolute; top: 10px; right: 10px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.55);
+}
 
 /* Menu ⋮ su schermo stretto: pannello dal basso, come le app video. Aperto
    sotto il pulsante finiva dietro la barra in basso o oltre il bordo dello

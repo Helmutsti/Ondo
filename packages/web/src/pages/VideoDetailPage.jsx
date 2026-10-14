@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MoreVertical, ExternalLink, CircleSlash, Download, Eye, EyeOff, Minimize2, Maximize2, PictureInPicture2, Gauge, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
+import { MoreVertical, ExternalLink, CircleSlash, Download, Eye, EyeOff, Maximize2, FileDown, Star, ChevronRight, ChevronLeft, ListMusic, RefreshCw, X, SkipForward } from 'lucide-react';
 import { getVideo, listVideos, setHidden, setFavorite, deleteVideo, triggerJob, refreshMetadata } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
@@ -16,11 +16,9 @@ import { startDownload } from '../lib/downloadActions.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial, formatBytes, formatBitrate } from '../lib/format.js';
 import { showToast, updateToast } from '../lib/toast.js';
 import { useQueue, removeFromQueue, clearQueue } from '../lib/queueStore.js';
-import { usePlayer, setCurrent, getVideoEl, useMiniPlayerEnabled, setMinimized, useAutoplayOnOpen } from '../lib/playerStore.js';
+import { usePlayer, setCurrent, setMinimized, useAutoplayOnOpen } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
 
-// Velocità in ordine crescente, per il menu a tendina (prima era un bottone a giro).
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
 const DOWNLOAD_LABEL = { none: 'Non scaricato', downloading: 'In download', downloaded: 'Scaricato', failed: 'Errore download' };
 
 export function VideoDetailPage() {
@@ -33,9 +31,6 @@ export function VideoDetailPage() {
   const [relatedCollapsed, setRelatedCollapsed] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [isPiP, setIsPiP] = useState(false);
-  const [pipError, setPipError] = useState(null);
-  const [speedIndex, setSpeedIndex] = useState(SPEEDS.indexOf(1));
   const [moreOpen, setMoreOpen] = useState(false);
   const navigate = useNavigate();
   const [descExpanded, setDescExpanded] = useState(false);
@@ -47,7 +42,6 @@ export function VideoDetailPage() {
   // (usato come dipendenza degli effetti che agiscono sull'elemento reale, che
   // esiste solo dopo che il player si è agganciato allo slot di questa pagina).
   const player = usePlayer();
-  const miniEnabled = useMiniPlayerEnabled();
   const autoplayOnOpen = useAutoplayOnOpen();
   // Avanzamento coda condiviso con MiniPlayer (M57): stesso percorso della fine
   // video, così i pulsanti "Successivo" e l'autoplay non divergono.
@@ -67,11 +61,6 @@ export function VideoDetailPage() {
   useEffect(() => { if (lastFinished && video) reload(); }, [lastFinished]);
 
   useEffect(reload, [id]);
-  useEffect(() => setPipError(null), [id]);
-  // Il browser azzera playbackRate a 1x a ogni nuovo <video src>: si resetta lo
-  // stato in coppia, così l'etichetta del pulsante non mente sulla velocità
-  // reale quando si passa da un video all'altro.
-  useEffect(() => setSpeedIndex(SPEEDS.indexOf(1)), [id]);
   useEffect(() => { autoplayedRef.current = false; }, [id]);
   useEffect(() => setDescExpanded(false), [id]);
 
@@ -106,68 +95,8 @@ export function VideoDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [video?.id, video?.videoUrl, location.state]);
 
-  function chooseSpeed(next) {
-    setSpeedIndex(next);
-    const el = getVideoEl();
-    if (el) el.playbackRate = SPEEDS[next];
-  }
-
-  // "Minimizza" (M54): contrae il video nel riquadro flottante **restando su
-  // questa pagina** (nessuna navigazione — rifinitura richiesta dall'utente).
-  // Il flag `minimized` del player globale scavalca l'aggancio e forza il
-  // flottante; la cornice qui mostra un placeholder con "Riporta qui".
-  function handleMinimize() {
-    setMinimized(true);
-  }
-
-  // Il pulsante PiP resta sincronizzato anche se l'utente chiude la finestra
-  // PiP nativa del sistema operativo invece di usare di nuovo il pulsante.
-  // Ascolta l'elemento <video> GLOBALE (M54): si ri-aggancia quando il player
-  // globale espone l'elemento per questo video (player.current?.id).
-  useEffect(() => {
-    const v = getVideoEl();
-    if (!v) return;
-    const onEnter = () => setIsPiP(true);
-    const onLeave = () => setIsPiP(false);
-    v.addEventListener('enterpictureinpicture', onEnter);
-    v.addEventListener('leavepictureinpicture', onLeave);
-    return () => {
-      v.removeEventListener('enterpictureinpicture', onEnter);
-      v.removeEventListener('leavepictureinpicture', onLeave);
-    };
-  }, [video?.id, player.current?.id]);
-
-  // Nota M54: il vecchio cleanup di unmount (pausa + exitPictureInPicture) è
-  // stato rimosso da qui. Ora è il player globale (MiniPlayer) a decidere al
-  // cambio pagina: se il mini-player è attivo e il video è in riproduzione,
-  // continua nel riquadro flottante; altrimenti ferma e chiude (ripristina il
-  // comportamento pre-M54, l'audio non resta in sottofondo).
-
-  async function togglePiP() {
-    setPipError(null);
-    const v = getVideoEl();
-    if (!v) return;
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-        return;
-      }
-      // requestPictureInPicture richiede i metadati già caricati: se l'utente
-      // clicca PiP prima di aver mai avviato il video, il browser potrebbe non
-      // averli ancora (anche con preload="metadata" — es. tab in background) —
-      // si aspetta l'evento con un timeout, invece di fallire subito o restare
-      // bloccato all'infinito se per qualche motivo l'evento non arriva mai.
-      if (v.readyState < 1) {
-        await Promise.race([
-          new Promise((resolve) => v.addEventListener('loadedmetadata', resolve, { once: true })),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('metadati non caricati (timeout)')), 5000))
-        ]);
-      }
-      await v.requestPictureInPicture();
-    } catch (e) {
-      setPipError(`Picture in Picture non disponibile: ${e.message}`);
-    }
-  }
+  // Velocità, Picture in Picture, minimizza e schermo intero stanno nei
+  // comandi sopra il video (components/PlayerControls.jsx).
 
   // "Video suggeriti" (punto 1 del backlog): selezione casuale su tutta la
   // libreria (non più limitata allo stesso canale), esclusi il video corrente
@@ -401,26 +330,6 @@ export function VideoDetailPage() {
               >
                 <Star size={18} fill={video.favorite ? 'currentColor' : 'none'} />
               </button>
-              {isDownloaded && miniEnabled && !(player.minimized && player.current?.id === video.id) && (
-                <button className="btn desktop-only" onClick={handleMinimize} title="Minimizza nel riquadro flottante">
-                  <Minimize2 size={14} />
-                  Minimizza
-                </button>
-              )}
-              {isDownloaded && document.pictureInPictureEnabled && (
-                <button className="btn" onClick={togglePiP}>
-                  <PictureInPicture2 size={14} />
-                  {isPiP ? 'Esci da PiP' : <><span className="label-long">Picture in Picture</span><span className="label-short">PiP</span></>}
-                </button>
-              )}
-              {isDownloaded && (
-                <label className="speed-select" title="Velocità di riproduzione">
-                  <Gauge size={14} />
-                  <select value={speedIndex} onChange={(e) => chooseSpeed(Number(e.target.value))} aria-label="Velocità di riproduzione">
-                    {SPEEDS.map((sp, i) => <option key={sp} value={i}>Velocità {sp}×</option>)}
-                  </select>
-                </label>
-              )}
               {downloadAction && (
                 <button className="btn btn-primary" onClick={() => handleAction('download', downloadAction.label)}>
                   <Download size={14} />{downloadAction.label}
@@ -452,7 +361,6 @@ export function VideoDetailPage() {
 
 
           {notice && <div className="notice success" style={{ marginTop: 16 }}>{notice}</div>}
-          {pipError && <div className="notice error" style={{ marginTop: 16 }}>{pipError}</div>}
 
           {/* Nota "qualità ridotta" (M55): compare quando il video è stato
               scaricato a una risoluzione più bassa di quella disponibile (es.

@@ -1,13 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { X, Maximize2, Play, Eye } from 'lucide-react';
+import { X, Maximize2, Play, Eye, Headphones } from 'lucide-react';
 import {
   usePlayer, useMiniPlayerEnabled,
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
 } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
 import { useMediaSession } from '../hooks/useMediaSession.js';
+import { PlayerControls, PlayerSettings } from './PlayerControls.jsx';
 import { attachVideo, watchBuffering } from 'vod-stream/client';
 import { apiUrl } from '../lib/apiBase.js';
 import { useDiscreet, revealPlayer } from '../lib/discreetStore.js';
@@ -16,6 +17,16 @@ import { useDiscreet, revealPlayer } from '../lib/discreetStore.js';
 // comportamento attuale (il video si ferma al cambio pagina), così non resta
 // audio in sottofondo da un riquadro nascosto. La soglia coincide col
 // breakpoint mobile del CSS.
+// Qualità scelta dall'ingranaggio: vale anche per i video successivi, come su
+// YouTube. Solo localStorage, come le altre preferenze del player.
+const QUALITY_KEY = 'ondo:playbackQuality';
+function loadQuality() {
+  try { return localStorage.getItem(QUALITY_KEY) || 'auto'; } catch { return 'auto'; }
+}
+function saveQuality(q) {
+  try { localStorage.setItem(QUALITY_KEY, q); } catch { /* modalità privata */ }
+}
+
 function isDesktopViewport() {
   return typeof window !== 'undefined' && window.matchMedia('(min-width: 641px)').matches;
 }
@@ -44,6 +55,12 @@ export function MiniPlayer() {
   useMediaSession(current, goToNext);
   const [buffering, setBuffering] = useState(false);
   const videoRef = useRef(null);
+  // Lo stesso elemento anche come stato, per i comandi che lo ascoltano.
+  const [videoNode, setVideoNode] = useState(null);
+  const bindVideo = useCallback((el) => { videoRef.current = el; setVideoEl(el); setVideoNode(el); }, []);
+  const streamRef = useRef(null);
+  const [stream, setStream] = useState({ quality: null, qualities: [], info: null });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const floatHomeRef = useRef(null);
 
   // Nodo di montaggio stabile: creato una volta sola, mai ricreato.
@@ -155,18 +172,27 @@ export function MiniPlayer() {
     // Animazione di caricamento: all'avvio, dopo un salto, quando la rete o la
     // conversione non tengono il passo. Mai in pausa.
     const stopWatching = watchBuffering(el, setBuffering);
+    const sync = (p) => setStream({ quality: p.quality, qualities: p.qualities, info: p.info });
     attachVideo(el, {
       infoUrl: apiUrl(`/media/stream/${encodeURIComponent(videoId)}/info.json`),
       directUrl,
-      loadHls: () => import('hls.js').then((m) => m.default)
+      quality: loadQuality(),
+      loadHls: () => import('hls.js').then((m) => m.default),
+      // Anche i ripieghi automatici (file illeggibile → HLS) cambiano la qualità.
+      onQualityChange: () => { if (player) sync(player); }
     }).then((p) => {
-      if (cancelled) p.destroy();
-      else { player = p; attemptAutoplay(); }
+      if (cancelled) { p.destroy(); return; }
+      player = p;
+      streamRef.current = p;
+      sync(p);
+      attemptAutoplay();
     });
     return () => {
       cancelled = true;
       stopWatching();
       setBuffering(false);
+      setSettingsOpen(false);
+      if (streamRef.current === player) streamRef.current = null;
       player?.destroy();
     };
   }, [videoId, directUrl, shouldShow]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -184,6 +210,11 @@ export function MiniPlayer() {
   // riquadro flottante si carica e riproduce il successivo senza cambiare pagina.
   function handleEnded() {
     goToNext();
+  }
+
+  function chooseQuality(q) {
+    saveQuality(q);
+    streamRef.current?.setQuality(q);
   }
 
   // X del riquadro flottante: ferma la riproduzione e chiude.
@@ -205,9 +236,8 @@ export function MiniPlayer() {
   const portalContent = current && (
     <>
       <video
-        ref={(el) => { videoRef.current = el; setVideoEl(el); }}
+        ref={bindVideo}
         className="gp-video"
-        controls
         playsInline
         preload="metadata"
         poster={current.thumbnailUrl || undefined}
@@ -220,12 +250,22 @@ export function MiniPlayer() {
       {/* Modalità discreta: velo sfocato sopra l'immagine. Non intercetta i
           clic (i controlli nativi sotto restano usabili); "Mostra" lo toglie
           per il solo video corrente. */}
+      {/* Solo audio: la copertina al posto dell'immagine, che non c'è. */}
+      {stream.quality === 'audio' && (
+        <div className="player-audio">
+          {current.thumbnailUrl && <img className="player-audio-bg" src={current.thumbnailUrl} alt="" />}
+          {current.thumbnailUrl && <img className="player-audio-art" src={current.thumbnailUrl} alt="" />}
+          <span className="player-audio-label"><Headphones size={13} />Solo audio</span>
+        </div>
+      )}
       {discreet.mode !== 'off' && discreet.revealedId !== current.id && (
-        <div className="discreet-veil">
+        <>
+          <div className="discreet-veil" />
+          {/* Fuori dal velo: sopra i comandi del player, che coprono il velo. */}
           <button className="discreet-reveal" onClick={() => revealPlayer(current.id)} title="Mostra l'immagine di questo video">
             <Eye size={13} />Mostra
           </button>
-        </div>
+        </>
       )}
       {buffering && (docked ? started : true) && (
         <div className="player-buffering" aria-label="Caricamento" role="status">
@@ -240,6 +280,26 @@ export function MiniPlayer() {
           {current.thumbnailUrl && <img src={current.thumbnailUrl} alt="" />}
           <span className="player-cover-play"><Play size={28} fill="currentColor" /></span>
         </button>
+      )}
+      {(floating || started || playing) && (
+        <PlayerControls
+          video={videoNode}
+          container={mountRef.current}
+          compact={floating}
+          quality={stream.quality}
+          settingsOpen={settingsOpen && !floating}
+          setSettingsOpen={setSettingsOpen}
+        />
+      )}
+      {settingsOpen && !floating && (
+        <PlayerSettings
+          video={videoNode}
+          quality={stream.quality}
+          qualities={stream.qualities}
+          info={stream.info}
+          onQuality={chooseQuality}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
       {floating && (
         <div className="gp-chrome">
