@@ -7,6 +7,7 @@ import {
   setPlaying, setStarted, setVideoEl, setDetached, setMinimized, clear, consumePendingPlay, getPendingPlay, getPlayerState
 } from '../lib/playerStore.js';
 import { useQueueAdvance } from '../hooks/useQueueAdvance.js';
+import { useMediaSession } from '../hooks/useMediaSession.js';
 import { attachVideo, watchBuffering } from 'vod-stream/client';
 import { apiUrl } from '../lib/apiBase.js';
 import { useDiscreet, revealPlayer } from '../lib/discreetStore.js';
@@ -40,6 +41,7 @@ export function MiniPlayer() {
   const location = useLocation();
   const navigate = useNavigate();
   const goToNext = useQueueAdvance();
+  useMediaSession(current, goToNext);
   const [buffering, setBuffering] = useState(false);
   const videoRef = useRef(null);
   const floatHomeRef = useRef(null);
@@ -230,7 +232,10 @@ export function MiniPlayer() {
           <span className="player-buffering-ring" />
         </div>
       )}
-      {docked && !started && (
+      {/* Mai sopra un video che sta andando: se il play parte da fuori (tasti
+          del sistema, cuffie, ripiego su HLS) e `started` resta indietro, la
+          copertina coprirebbe l'immagine con l'audio che scorre. */}
+      {docked && !started && !playing && (
         <button className="player-cover" onClick={() => videoRef.current?.play()} aria-label="Riproduci">
           {current.thumbnailUrl && <img src={current.thumbnailUrl} alt="" />}
           <span className="player-cover-play"><Play size={28} fill="currentColor" /></span>

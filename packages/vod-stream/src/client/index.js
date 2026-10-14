@@ -79,12 +79,22 @@ export async function attachVideo(video, o) {
     // Ripiego: canPlayType a volte promette più di quanto il browser mantenga.
     // Se il file dà errore si passa a HLS dal punto in cui si era.
     if (masterUrl) {
-      on('error', () => {
-        if (state.destroyed || state.mode !== 'direct') return;
+      let done = false;
+      const fallback = () => {
+        if (done || state.destroyed || state.mode !== 'direct') return;
+        done = true;
         const t = video.currentTime;
         const wasPlaying = !video.paused || video.autoplay;
         useHls(t).then(() => { if (wasPlaying) video.play().catch(() => {}); });
-      }, { once: true });
+      };
+      on('error', fallback, { once: true });
+      // Peggio dell'errore: un codec video che il browser non sa decodificare
+      // ma con l'audio sì (Chrome con certi HEVC/AV1). Nessun errore, parte
+      // l'audio e l'immagine resta la copertina. Si riconosce dalla larghezza
+      // 0 a metadati caricati.
+      if (state.info?.videoCodec) {
+        on('loadedmetadata', () => { if (video.videoWidth === 0) fallback(); }, { once: true });
+      }
     }
   }
 

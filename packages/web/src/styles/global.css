@@ -1848,3 +1848,30 @@ a.profile-chip:hover { border-color: var(--border); }
   .creator-stats { padding: 9px 10px 10px; }
   .creator-stats b { font-size: 13.5px; }
 }
+
+/* Copertina in download: il blur sfuma i bordi dell'immagine verso il fondo a
+   righe del .thumb, e il cerchio sembrava chiuso in un riquadro più scuro.
+   Ingrandita quanto basta per spingere la sfumatura fuori dal ritaglio (in
+   modalità discreta ci pensa già lo scale(1.5) di quella regola). */
+html:not([data-discreet]) .thumb.downloading img { transform: scale(1.15); }
+
+/* Menu ⋮ su schermo stretto: pannello dal basso, come le app video. Aperto
+   sotto il pulsante finiva dietro la barra in basso o oltre il bordo dello
+   schermo (sulla scheda del video il ⋮ va a capo a sinistra e il menu, ancorato
+   a destra, usciva a sinistra), e lo sfondo che chiude il menu bloccava lo
+   scorrimento: le voci restavano irraggiungibili. In fondo al file per vincere
+   sulle regole di posizione di .detail-menu, .chip-menu, .source-menu. */
+@media (max-width: 880px) {
+  .menu-backdrop { z-index: 259; background: rgba(0,0,0,.55); animation: fade-in .15s ease; }
+  .menu-list, .menu-list.up {
+    position: fixed; left: 0; right: 0; top: auto; bottom: 0; z-index: 260;
+    min-width: 0; max-height: 78vh; overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 18px 18px 0 0; border-width: 1px 0 0;
+    padding: 10px 10px calc(14px + env(safe-area-inset-bottom));
+    animation: sheet-up .2s ease;
+  }
+  .menu-list .menu-item { font-size: 15px; padding: 12px; }
+}
+@media (max-width: 880px) and (prefers-reduced-motion: reduce) {
+  .menu-backdrop, .menu-list { animation: none; }
+}
