@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Download, Upload, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff, CircleSlash } from 'lucide-react';
+import {
+  Download, Upload, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff, CircleSlash,
+  Shield, Library, Archive, Monitor, Server, ChevronDown, ChevronRight
+} from 'lucide-react';
 import { BACKUP_URL, restoreBackup, getConfig, setDefaultQuality, setParallel, uploadCookies, deleteCookies, listIgnored, unignoreVideo } from '../api/client.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { confirmDialog } from '../lib/dialog.js';
@@ -8,35 +11,86 @@ import { useMiniPlayerEnabled, setMiniPlayerEnabled, useAutoplayOnOpen, setAutop
 import { useDiscreet, setDiscreetMode } from '../lib/discreetStore.js';
 import { useShowHiddenFilter, setShowHiddenFilter } from '../lib/hiddenFilterStore.js';
 
+// Impostazioni in una pagina sola, divisa in quattro gruppi. Ogni gruppo dice
+// dove vale: «Questo browser» (preferenze in localStorage) o «Server» (per
+// tutti i dispositivi e per la CLI). Descrizioni di una riga: il dettaglio
+// che serve davvero sta nel testo, il resto si scopre usando.
+const GROUPS = [
+  { id: 'riproduzione', title: 'Riproduzione', icon: Play, scope: 'browser' },
+  { id: 'privacy', title: 'Privacy', icon: Shield, scope: 'browser' },
+  { id: 'download', title: 'Download', icon: Download, scope: 'server' },
+  { id: 'libreria', title: 'Libreria', icon: Library, scope: 'server' }
+];
+
 const DISCREET_OPTIONS = [
   { value: 'off', title: 'Spenta', sub: 'Copertine, foto e testi visibili come sempre.' },
-  { value: 'images', title: 'Nascondi le immagini', sub: 'Copertine, foto profilo e immagine del player sfocate. Nel player, «Mostra» la scopre per il solo video corrente.' },
-  { value: 'all', title: 'Nascondi immagini e testi', sub: 'In più sfoca titoli, nomi di creator e fonti, descrizioni, tag e notifiche. Il titolo della scheda del browser resta «Ondo».' }
+  { value: 'images', title: 'Immagini', sub: 'Copertine, foto profilo e immagine del player sfocate. Nel player, «Mostra» la scopre per il solo video corrente.' },
+  { value: 'all', title: 'Immagini e testi', sub: 'In più sfoca titoli, nomi, descrizioni, tag e notifiche. La scheda del browser resta «Ondo».' }
 ];
+
+function Scope({ scope }) {
+  return scope === 'server'
+    ? <span className="set-scope" title="Vale per tutti i dispositivi e per la CLI"><Server size={12} />Server</span>
+    : <span className="set-scope" title="Salvata in questo browser: gli altri dispositivi non cambiano"><Monitor size={12} />Questo browser</span>;
+}
+
+function Group({ id, title, icon: Icon, scope, children }) {
+  return (
+    <section className="set-group" id={`set-${id}`} aria-labelledby={`set-${id}-title`}>
+      <div className="set-group-head">
+        <Icon size={17} className="set-group-icon" />
+        <h2 id={`set-${id}-title`}>{title}</h2>
+        <Scope scope={scope} />
+      </div>
+      <div className="set-card">{children}</div>
+    </section>
+  );
+}
+
+// Una riga: titolo e descrizione a sinistra, controllo a destra (sotto con
+// `stack`). `children` va a tutta larghezza sotto la riga: errori, esiti,
+// elenchi.
+function Row({ icon: Icon, title, sub, control, stack, children }) {
+  return (
+    <div className={`set-row${stack ? ' set-row--stack' : ''}`}>
+      <div className="set-row-text">
+        <div className="set-row-title">{Icon && <Icon size={15} />}{title}</div>
+        {sub && <div className="set-row-sub">{sub}</div>}
+      </div>
+      {control && <div className="set-row-ctl">{control}</div>}
+      {children && <div className="set-row-extra">{children}</div>}
+    </div>
+  );
+}
+
+function Switch({ on, onToggle, label }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`switch${on ? ' on' : ''}`} onClick={onToggle} aria-label={label}>
+      <span className="switch-knob" />
+    </button>
+  );
+}
 
 export function SettingsPage() {
   useTitle('Impostazioni');
 
-  // --- Riproduzione (mini-player, M54; autoplay all'apertura, M60) — preferenze solo client (localStorage) ---
   const miniPlayerEnabled = useMiniPlayerEnabled();
   const autoplayOnOpen = useAutoplayOnOpen();
   const { mode: discreetMode } = useDiscreet();
+  const showHidden = useShowHiddenFilter();
 
   // --- Backup / ripristino ---
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // --- Qualità predefinita dei download (stesso menu della CLI) ---
-  const [qualityBusy, setQualityBusy] = useState(false);
-  const [qualityError, setQualityError] = useState(null);
-
-  // --- Download in parallelo (stesso menu della CLI, default 1) ---
-  const [parallelBusy, setParallelBusy] = useState(false);
-  const [parallelError, setParallelError] = useState(null);
-
+  // --- Qualità predefinita e download in parallelo (stessi menu della CLI) ---
   const [config, setConfig] = useState(null);
   const [configError, setConfigError] = useState(null);
+  const [qualityBusy, setQualityBusy] = useState(false);
+  const [qualityError, setQualityError] = useState(null);
+  const [parallelBusy, setParallelBusy] = useState(false);
+  const [parallelError, setParallelError] = useState(null);
 
   // --- Cookie YouTube ---
   const [cookiesStatus, setCookiesStatus] = useState(null);
@@ -142,175 +196,171 @@ export function SettingsPage() {
     }
   }
 
+  const currentQuality = (config?.qualityLevels ?? []).find((q) => q.current);
+  const discreetSub = DISCREET_OPTIONS.find((o) => o.value === discreetMode)?.sub;
+
   return (
     <>
       <div className="page-head"><h1>Impostazioni</h1></div>
-      {configError && <div className="notice error" style={{ marginBottom: 14 }}>{configError}</div>}
 
-      <div className="d-desc">
-        <span className="label"><EyeOff size={15} style={{ verticalAlign: -2 }} /> Modalità discreta</span>
-        Per usare Ondo quando qualcuno può vedere lo schermo. Per scoprire un elemento al volo, tieni premuto Alt (⌥ su Mac) e passaci sopra col mouse. La scelta è salvata in questo browser: gli altri dispositivi non cambiano.
-        <div className="discreet-options" role="radiogroup" aria-label="Modalità discreta">
-          {DISCREET_OPTIONS.map((o) => (
-            <label key={o.value} className={`discreet-option${discreetMode === o.value ? ' active' : ''}`}>
-              <input
-                type="radio"
-                name="discreet-mode"
-                value={o.value}
-                checked={discreetMode === o.value}
-                onChange={() => setDiscreetMode(o.value)}
-              />
-              <span>
-                <div className="discreet-option-title">{o.title}</div>
-                <div className="discreet-option-sub">{o.sub}</div>
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="d-desc">
-        <span className="label">Riproduzione</span>
-        <div className="setting-row">
-          <div className="setting-text">
-            <div className="setting-title"><PictureInPicture2 size={15} /> Mini-player flottante</div>
-            <div className="setting-sub">
-              Lasciando la pagina di un video in riproduzione, continua in un piccolo riquadro in basso a destra mentre navighi altrove (come su YouTube). Disattivandolo, il video si ferma al cambio pagina. Solo desktop. La preferenza è salvata in questo browser.
-            </div>
-          </div>
+      <nav className="set-jump" aria-label="Vai al gruppo">
+        {GROUPS.map(({ id, title, icon: Icon }) => (
           <button
+            key={id}
             type="button"
-            role="switch"
-            aria-checked={miniPlayerEnabled}
-            className={`switch${miniPlayerEnabled ? ' on' : ''}`}
-            onClick={() => setMiniPlayerEnabled(!miniPlayerEnabled)}
-            aria-label="Attiva/disattiva mini-player flottante"
+            className="set-chip"
+            onClick={() => document.getElementById(`set-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
           >
-            <span className="switch-knob" />
+            <Icon size={13} />{title}
           </button>
-        </div>
-        <div className="setting-row">
-          <div className="setting-text">
-            <div className="setting-title"><Play size={15} /> Riproduzione automatica</div>
-            <div className="setting-sub">
-              Se attivo, aprendo un video già scaricato la riproduzione parte da sola. I browser possono bloccare l'avvio automatico con audio finché non interagisci con la pagina: in quel caso resta la copertina "Riproduci" da cliccare. L'avanzamento automatico della coda/playlist funziona comunque, a prescindere da questa impostazione. La preferenza è salvata in questo browser.
-            </div>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autoplayOnOpen}
-            className={`switch${autoplayOnOpen ? ' on' : ''}`}
-            onClick={() => setAutoplayOnOpen(!autoplayOnOpen)}
-            aria-label="Attiva/disattiva riproduzione automatica all'apertura di un video"
+        ))}
+      </nav>
+
+      {configError && <div className="notice error">{configError}</div>}
+
+      <div className="set-groups">
+        <Group {...GROUPS[0]}>
+          <Row
+            icon={PictureInPicture2}
+            title="Mini-player flottante"
+            sub="Lasciando un video in riproduzione, continua in un riquadro in basso a destra. Spento, nel player compare il Picture-in-Picture. Solo desktop."
+            control={<Switch on={miniPlayerEnabled} onToggle={() => setMiniPlayerEnabled(!miniPlayerEnabled)} label="Mini-player flottante" />}
+          />
+          <Row
+            icon={Play}
+            title="Riproduzione automatica"
+            sub="Aprendo un video scaricato parte da solo (se il browser lo consente). La coda prosegue comunque."
+            control={<Switch on={autoplayOnOpen} onToggle={() => setAutoplayOnOpen(!autoplayOnOpen)} label="Riproduzione automatica" />}
+          />
+        </Group>
+
+        <Group {...GROUPS[1]}>
+          <Row
+            stack
+            icon={EyeOff}
+            title="Modalità discreta"
+            sub="Per usare Ondo quando qualcuno vede lo schermo. Tieni premuto Alt (⌥) e passa sopra un elemento per scoprirlo al volo."
+            control={
+              <div className="set-segmented" role="radiogroup" aria-label="Modalità discreta">
+                {DISCREET_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={discreetMode === o.value}
+                    className={discreetMode === o.value ? 'active' : ''}
+                    onClick={() => setDiscreetMode(o.value)}
+                  >
+                    {o.title}
+                  </button>
+                ))}
+              </div>
+            }
           >
-            <span className="switch-knob" />
-          </button>
-        </div>
-      </div>
+            {discreetSub && <div className="hint">{discreetSub}</div>}
+          </Row>
+          <Row
+            icon={EyeOff}
+            title="Filtro «Nascosti»"
+            sub="Mostra il filtro nella Libreria e nei creator. Spento, i video nascosti non compaiono da nessuna parte (restano in libreria, con i loro file)."
+            control={<Switch on={showHidden} onToggle={() => setShowHiddenFilter(!showHidden)} label="Filtro Nascosti" />}
+          />
+        </Group>
 
-      <div className="d-desc">
-        <span className="label"><Gauge size={15} style={{ verticalAlign: -2 }} /> Qualità predefinita</span>
-        Vale per i download futuri (i già scaricati non vengono toccati). «Chiedi ogni volta» fa comparire la scelta della risoluzione a ogni download, come già succede per ogni video da questa pagina web. La qualità più alta esclude comunque l'AV1: alla stessa risoluzione dava errori 403 sistematici.
-        {config && (
-          <div className="field" style={{ marginTop: 12, maxWidth: 320 }}>
-            <select
-              value={(() => {
-                const current = (config.qualityLevels ?? []).find((q) => q.current);
-                return current ? `${current.kind}:${current.height}` : '';
-              })()}
-              onChange={handleSetQuality}
-              disabled={qualityBusy}
-            >
-              {(config.qualityLevels ?? []).map((q) => (
-                <option key={`${q.kind}:${q.height}`} value={`${q.kind}:${q.height}`}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {qualityError && <div className="notice error" style={{ marginTop: 14 }}>{qualityError}</div>}
-      </div>
+        <Group {...GROUPS[2]}>
+          <Row
+            icon={Gauge}
+            title="Qualità predefinita"
+            sub="Per i download futuri. «Chiedi ogni volta» fa scegliere la risoluzione a ogni download. L'AV1 è sempre escluso."
+            control={config && (
+              <select
+                className="set-select"
+                aria-label="Qualità predefinita"
+                value={currentQuality ? `${currentQuality.kind}:${currentQuality.height}` : ''}
+                onChange={handleSetQuality}
+                disabled={qualityBusy}
+              >
+                {(config.qualityLevels ?? []).map((q) => (
+                  <option key={`${q.kind}:${q.height}`} value={`${q.kind}:${q.height}`}>{q.label}</option>
+                ))}
+              </select>
+            )}
+          >
+            {qualityError && <div className="notice error">{qualityError}</div>}
+          </Row>
+          <Row
+            icon={Layers}
+            title="Download in parallelo"
+            sub="Alzarlo fa partire subito quelli in coda; abbassarlo non interrompe quelli in corso."
+            control={config && (
+              <select className="set-select" aria-label="Download in parallelo" value={config.parallel ?? 1} onChange={handleSetParallel} disabled={parallelBusy}>
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <option key={n} value={n}>{n === 1 ? '1 — uno alla volta' : n}</option>
+                ))}
+              </select>
+            )}
+          >
+            {parallelError && <div className="notice error">{parallelError}</div>}
+          </Row>
+          <Row
+            icon={Cookie}
+            title="Cookie YouTube"
+            sub={<>
+              Per video privati, non listati o con limite d'età: esportali dal browser in cui sei loggato (es. «Get cookies.txt»). Mai nel backup.{' '}
+              {cookiesStatus && (cookiesStatus.present
+                ? <>Caricati il {new Date(cookiesStatus.updatedAt).toLocaleString('it-IT')}.</>
+                : <>Nessun cookie caricato.</>)}
+            </>}
+            control={<>
+              <label className="btn small" style={{ cursor: cookiesBusy ? 'default' : 'pointer' }}>
+                <Upload size={14} /> {cookiesBusy ? 'Caricamento…' : cookiesStatus?.present ? 'Sostituisci…' : 'Carica…'}
+                <input type="file" accept=".txt" hidden onChange={handleUploadCookies} disabled={cookiesBusy} />
+              </label>
+              {cookiesStatus?.present && (
+                <button className="btn small btn-danger" onClick={handleDeleteCookies} disabled={cookiesBusy}>
+                  <Trash2 size={14} /> Cancella
+                </button>
+              )}
+            </>}
+          >
+            {cookiesError && <div className="notice error">{cookiesError}</div>}
+          </Row>
+        </Group>
 
-      <div className="d-desc">
-        <span className="label"><Layers size={15} style={{ verticalAlign: -2 }} /> Download in parallelo</span>
-        Quanti download vanno insieme invece che uno alla volta (default 1). Alzarlo fa partire subito quelli in coda; abbassarlo non interrompe quelli già in corso, semplicemente non vengono rimpiazzati finché non si scende sotto il tetto.
-        {config && (
-          <div className="field" style={{ marginTop: 12, maxWidth: 320 }}>
-            <select
-              value={config.parallel ?? 1}
-              onChange={handleSetParallel}
-              disabled={parallelBusy}
-            >
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <option key={n} value={n}>{n === 1 ? '1 (uno alla volta)' : n}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {parallelError && <div className="notice error" style={{ marginTop: 14 }}>{parallelError}</div>}
+        <Group {...GROUPS[3]}>
+          <Row
+            icon={Archive}
+            title="Backup"
+            sub="Catalogo, metadati, impostazioni e copertine in un .zip (senza video e cookie). Ripristinando, i dati attuali vengono prima messi da parte; poi va riavviato il server."
+            control={<>
+              <a className="btn small btn-primary" href={BACKUP_URL}><Download size={14} /> Scarica backup</a>
+              <label className="btn small" style={{ cursor: busy ? 'default' : 'pointer' }}>
+                <Upload size={14} /> {busy ? 'Ripristino…' : 'Ripristina…'}
+                <input type="file" accept=".zip" hidden onChange={handleRestore} disabled={busy} />
+              </label>
+            </>}
+          >
+            {error && <div className="notice error">{error}</div>}
+            {result && (
+              <div className="notice success">
+                Ripristinati: {result.restored.join(', ')}{result.restoredImages ? ` + ${result.restoredImages} immagini` : ''}. Copia di sicurezza in <code>{result.safetyDir}</code>.
+                {' '}<strong>Riavvia il server</strong> per applicare le modifiche.
+              </div>
+            )}
+          </Row>
+          <IgnoredRow />
+        </Group>
       </div>
-
-      <div className="d-desc">
-        <span className="label">Cookie YouTube</span>
-        Necessari per i video privati/non listati del tuo account o con limite d'età. Esporta i cookie dal browser (es. estensione "Get cookies.txt") mentre sei loggato su YouTube, poi caricali qui — sostituiscono quelli attuali, effetto immediato (nessun riavvio), e restano anche dopo un aggiornamento. Il file non viene mai versionato né incluso nel backup.
-        {cookiesStatus && (
-          <div style={{ marginTop: 12, fontSize: 12.5 }}>
-            {cookiesStatus.present
-              ? <>Cookie presenti, caricati il {new Date(cookiesStatus.updatedAt).toLocaleString('it-IT')}.</>
-              : <span style={{ color: 'var(--faint)' }}>Nessun cookie configurato.</span>}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <label className="btn btn-primary" style={{ cursor: cookiesBusy ? 'default' : 'pointer' }}>
-            <Cookie size={15} /> {cookiesBusy ? 'Caricamento…' : 'Carica cookie…'}
-            <input type="file" accept=".txt" hidden onChange={handleUploadCookies} disabled={cookiesBusy} />
-          </label>
-          {cookiesStatus?.present && (
-            <button className="btn btn-danger" onClick={handleDeleteCookies} disabled={cookiesBusy}>
-              <Trash2 size={15} /> Cancella cookie
-            </button>
-          )}
-        </div>
-        {cookiesError && <div className="notice error" style={{ marginTop: 14 }}>{cookiesError}</div>}
-      </div>
-
-      <div className="d-desc">
-        <span className="label">Backup e ripristino</span>
-        Scarica un archivio .zip con il catalogo, i metadati, lo storico dei job, le impostazioni e le copertine/avatar (i file video e i cookie non sono inclusi), oppure ripristina da un backup .zip: i file dati attuali vengono prima copiati in una cartella di sicurezza, poi sostituiti. Dopo un ripristino occorre riavviare il server.
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-          <a className="btn btn-primary" href={BACKUP_URL}>
-            <Download size={15} /> Scarica backup .zip
-          </a>
-          <label className="btn" style={{ cursor: busy ? 'default' : 'pointer' }}>
-            <Upload size={15} /> {busy ? 'Ripristino…' : 'Ripristina da file…'}
-            <input type="file" accept=".zip" hidden onChange={handleRestore} disabled={busy} />
-          </label>
-        </div>
-        {error && <div className="notice error" style={{ marginTop: 14 }}>{error}</div>}
-        {result && (
-          <div className="notice success" style={{ marginTop: 14 }}>
-            Ripristinati: {result.restored.join(', ')}{result.restoredImages ? ` + ${result.restoredImages} immagini` : ''}. Copia di sicurezza in <code>{result.safetyDir}</code>.
-            {' '}<strong>Riavvia il server</strong> per applicare le modifiche.
-          </div>
-        )}
-      </div>
-
-      <IgnoredSection />
     </>
   );
 }
 
-// Nascosti e ignorati, uno sotto l'altro: le due maniere di togliersi un video
-// dai piedi.
-// - Il filtro «Nascosti» si può togliere dalla Libreria e dai creator.
-// - I video ignorati sono già cancellati dalla libreria: di loro resta solo
-//   quanto serve a non riprenderli. «Sblocca» li toglie dall'elenco, e al
-//   prossimo controllo della fonte rientrano da riscaricare, se ci sono ancora.
-function IgnoredSection() {
-  const showHidden = useShowHiddenFilter();
+// I video ignorati sono già cancellati dalla libreria: di loro resta solo
+// quanto serve a non riprenderli. «Sblocca» li toglie dall'elenco, e al
+// prossimo controllo della fonte rientrano da riscaricare, se ci sono ancora.
+function IgnoredRow() {
   const [list, setList] = useState(null);
+  const [open, setOpen] = useState(false);
   useEffect(() => { listIgnored().then(setList).catch(() => setList([])); }, []);
   async function restore(x) {
     const ok = await confirmDialog({
@@ -326,35 +376,21 @@ function IgnoredSection() {
       showToast(e.message, 'error');
     }
   }
+  const n = list?.length ?? 0;
   return (
-    <div className="d-desc">
-      <span className="label"><EyeOff size={15} style={{ verticalAlign: -2 }} /> Nascosti e ignorati</span>
-      <div className="setting-row">
-        <div className="setting-text">
-          <div className="setting-title">Filtro «Nascosti»</div>
-          <div className="setting-sub">
-            Mostra il filtro «Nascosti» nella Libreria e nella pagina dei creator. Spento, i video nascosti non compaiono da nessuna parte (restano in libreria, con i loro file). La preferenza è salvata in questo browser.
-          </div>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showHidden}
-          className={`switch${showHidden ? ' on' : ''}`}
-          onClick={() => setShowHiddenFilter(!showHidden)}
-          aria-label="Mostra o nascondi il filtro Nascosti"
-        >
-          <span className="switch-knob" />
+    <Row
+      icon={CircleSlash}
+      title="Video ignorati"
+      sub={list === null ? 'Cancellati dalla libreria e mai più ripresi dalle fonti.'
+        : n === 0 ? 'Nessuno. Un video ignorato viene cancellato e non viene più ripreso dalle fonti.'
+        : `${n} video, cancellati e mai più ripresi dalle fonti. Sbloccandone uno, rientra al prossimo controllo della fonte.`}
+      control={n > 0 && (
+        <button type="button" className="btn small" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {open ? 'Chiudi' : 'Gestisci'}
         </button>
-      </div>
-
-      <div className="setting-title" style={{ marginTop: 18 }}><CircleSlash size={15} /> Video ignorati</div>
-      <div className="setting-sub">
-        Cancellati dalla libreria con i loro file: ne resta solo quanto serve a non riprenderli dalle fonti. Sbloccandone uno, rientra al prossimo controllo della fonte da riscaricare, se c'è ancora.
-      </div>
-      {list === null ? null : list.length === 0 ? (
-        <div className="hint" style={{ marginTop: 10 }}>Nessun video ignorato.</div>
-      ) : (
+      )}
+    >
+      {open && n > 0 && (
         <div className="ignored-list">
           {list.map((x) => (
             <div key={x.id} className="ignored-row">
@@ -367,6 +403,6 @@ function IgnoredSection() {
           ))}
         </div>
       )}
-    </div>
+    </Row>
   );
 }
