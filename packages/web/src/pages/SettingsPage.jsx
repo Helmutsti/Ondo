@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Download, Upload, Clapperboard, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff, CircleSlash } from 'lucide-react';
-import { BACKUP_URL, restoreBackup, getConfig, setVideosRoot, setDefaultQuality, setParallel, uploadCookies, deleteCookies, listIgnored, unignoreVideo } from '../api/client.js';
+import { Download, Upload, Cookie, Trash2, PictureInPicture2, Play, Gauge, Layers, EyeOff, CircleSlash } from 'lucide-react';
+import { BACKUP_URL, restoreBackup, getConfig, setDefaultQuality, setParallel, uploadCookies, deleteCookies, listIgnored, unignoreVideo } from '../api/client.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { confirmDialog } from '../lib/dialog.js';
 import { showToast } from '../lib/toast.js';
@@ -35,12 +35,8 @@ export function SettingsPage() {
   const [parallelBusy, setParallelBusy] = useState(false);
   const [parallelError, setParallelError] = useState(null);
 
-  // --- Percorso video (copertine/avatar vivono fissi dentro data/media) ---
   const [config, setConfig] = useState(null);
-  const [videosInput, setVideosInput] = useState('');
-  const [videosBusy, setVideosBusy] = useState(false);
-  const [videosResult, setVideosResult] = useState(null);
-  const [videosError, setVideosError] = useState(null);
+  const [configError, setConfigError] = useState(null);
 
   // --- Cookie YouTube ---
   const [cookiesStatus, setCookiesStatus] = useState(null);
@@ -50,14 +46,13 @@ export function SettingsPage() {
   function reloadConfig() {
     return getConfig().then((c) => {
       setConfig(c);
-      setVideosInput(c.videosRoot ?? '');
       setCookiesStatus(c.cookies);
       return c;
     });
   }
 
   useEffect(() => {
-    reloadConfig().catch((e) => setVideosError(e.message));
+    reloadConfig().catch((e) => setConfigError(e.message));
   }, []);
 
   async function handleRestore(e) {
@@ -106,19 +101,6 @@ export function SettingsPage() {
     }
   }
 
-  async function handleSaveVideosRoot() {
-    setVideosError(null);
-    setVideosResult(null);
-    setVideosBusy(true);
-    try {
-      setVideosResult(await setVideosRoot(videosInput.trim()));
-    } catch (err) {
-      setVideosError(err.message);
-    } finally {
-      setVideosBusy(false);
-    }
-  }
-
   async function handleUploadCookies(e) {
     const file = e.target.files?.[0];
     e.target.value = ''; // permette di riselezionare lo stesso file
@@ -163,6 +145,7 @@ export function SettingsPage() {
   return (
     <>
       <div className="page-head"><h1>Impostazioni</h1></div>
+      {configError && <div className="notice error" style={{ marginBottom: 14 }}>{configError}</div>}
 
       <div className="d-desc">
         <span className="label"><EyeOff size={15} style={{ verticalAlign: -2 }} /> Modalità discreta</span>
@@ -267,41 +250,6 @@ export function SettingsPage() {
           </div>
         )}
         {parallelError && <div className="notice error" style={{ marginTop: 14 }}>{parallelError}</div>}
-      </div>
-
-      <div className="d-desc">
-        <span className="label">Cartella video</span>
-        Posizione su disco dei file video (con una sottocartella per creator). Copertine e avatar vivono invece dentro <code>data/media</code>, non spostabili separatamente. Per cambiare questa: crea/sposta prima la cartella, poi indica qui il percorso — l'app non tocca i file. Effetto dopo il riavvio del server.
-        {config && (
-          <div style={{ marginTop: 12, fontSize: 12.5 }}>
-            Percorso attuale: <code>{config.videosDirResolved}</code>
-            {!config.videosRoot && <> <span style={{ color: 'var(--faint)' }}>(default: ./videos)</span></>}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 240, maxWidth: 'none' }}>
-            <input
-              placeholder="Es. D:\YouTube\Video"
-              value={videosInput}
-              onChange={(e) => setVideosInput(e.target.value)}
-              disabled={videosBusy}
-            />
-          </div>
-          <button
-            className="btn btn-primary"
-            onClick={handleSaveVideosRoot}
-            disabled={videosBusy || !videosInput.trim() || videosInput.trim() === (config?.videosRoot ?? '')}
-          >
-            <Clapperboard size={15} /> {videosBusy ? 'Salvataggio…' : 'Salva'}
-          </button>
-        </div>
-        {videosError && <div className="notice error" style={{ marginTop: 14 }}>{videosError}</div>}
-        {videosResult && (
-          <div className="notice success" style={{ marginTop: 14 }}>
-            Cartella video impostata su <code>{videosResult.resolved}</code>.
-            {' '}<strong>Riavvia il server</strong> per applicare.
-          </div>
-        )}
       </div>
 
       <div className="d-desc">

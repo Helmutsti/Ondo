@@ -27,7 +27,7 @@ import {
 // presente nello zip (sicurezza: nessun path traversal / sovrascrittura
 // arbitraria dallo zip). cookies.txt resta escluso (dati di sessione sensibili).
 // Il catalogo (libreria.db) non è qui: si copia a parte, con VACUUM INTO. Il
-// config della libreria è `conf.json` (e contiene solo il percorso dei video).
+// config della libreria è `conf.json` (oggi vuoto: i video stanno sempre in <libreria>/videos).
 const BACKUP_JSON_FILES = ['jobs.json', 'conf.json'];
 // Il catalogo delle versioni precedenti: si accetta solo in ripristino, e si
 // converte nel database invece di essere scritto come file.

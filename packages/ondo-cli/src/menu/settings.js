@@ -89,33 +89,19 @@ async function paths(app) {
     await stato(app);
 
     console.log(`${ui.style.dim("Invio senza cambiare niente lascia il valore com'è.")}\n`);
-    const cfg = app.lib.config();
-    // M95 — l'unico percorso ancora impostabile è la cartella dei video: VLC,
-    // yt-dlp e ffmpeg si cercano da soli, e il file cookie ha una posizione
-    // fissa (si importa, non si indica). Le due voci restanti sono di sola
-    // lettura, mostrate da stato(): qui si agisce solo su ciò che è una scelta.
+    // L'unica azione qui è importare i cookie: VLC, yt-dlp e ffmpeg si cercano
+    // da soli, e i video stanno sempre in <libreria>/videos (per un altro disco
+    // si monta quella cartella). Il resto è di sola lettura, mostrato da stato().
     const voci = [
-      { name: `Cartella video: ${cfg.videos}`, value: 'videos' },
       { name: 'Importa un file cookie…', value: 'cookies' },
       { name: '← indietro', value: BACK }
     ];
 
-    const scelta = await ui.selectOpt({ choices: voci, defaultValue: 'videos', pageSize: voci.length });
+    const scelta = await ui.selectOpt({ choices: voci, defaultValue: 'cookies', pageSize: voci.length });
     if (scelta === null || scelta === BACK) return;
 
     try {
-      if (scelta === 'videos') {
-        const attuale = core.loadLibraryConfig().videosRoot ?? cfg.videos;
-        const nuovo = await chiedi('Cartella video (relativa alla radice, o assoluta)', attuale);
-        if (nuovo === null) {
-          ui.ok(app, 'invariata');
-        } else if (nuovo === '') {
-          ui.err(app, 'la cartella dei video non può essere vuota');
-        } else {
-          core.setVideosRoot(nuovo);
-          ui.ok(app, 'cambiata. I file già scaricati NON vengono spostati: spostali a mano se serve.');
-        }
-      } else if (scelta === 'cookies') {
+      if (scelta === 'cookies') {
         // Si COPIA il file nella sua posizione fissa invece di memorizzarne il
         // percorso: così il catalogo non dipende da un file che sta altrove sul
         // disco e che l'utente può spostare senza saperlo.

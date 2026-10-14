@@ -125,14 +125,13 @@ Per lavorare su **due librerie insieme** basta un secondo servizio nello stesso 
 
 Su Docker Desktop il disco deve essere fra quelli condivisi (Settings → Resources → File sharing). Se è un disco esterno, tienilo collegato: quando il percorso non esiste, l'app non parte.
 
-**Solo i video su un altro disco** (l'archivio resta dov'è, i file pesanti no): aggiungi un mount e poi indica quel percorso in `library/data/conf.json`, che esiste esattamente per questo:
+**Solo i video su un altro disco** (l'archivio resta dov'è, i file pesanti no): monta quella cartella al posto di `videos/` dentro la libreria. Non c'è niente da impostare: i video stanno sempre in `<libreria>/videos`, e il mount decide dove stanno davvero.
 
 ```yaml
-      - D:\Video:/videos
+      - D:\Video:/library/videos
 ```
-```json
-{ "videosRoot": "/videos" }
-```
+
+Senza Docker vale lo stesso con un link: `mklink /J D:\MiaLibreria\videos D:\Video` su Windows, `ln -s /mnt/video ~/MiaLibreria/videos` su Linux e macOS.
 
 **Video privati o non listati.** Esporta i cookie di YouTube in formato Netscape (per esempio con l'estensione «Get cookies.txt LOCALLY») e caricali dalla web app in **Impostazioni → Cookie**. Finiscono in `config\cookies.txt`, accanto alle impostazioni: sopravvivono agli aggiornamenti dell'immagine.
 
@@ -284,7 +283,7 @@ La libreria è una cartella qualsiasi, dove vuoi nel sistema, fatta così:
 
 ```
 <libreria>/
-  videos/                 i file video (o altrove: vedi conf.json)
+  videos/                 i file video (su un altro disco: si monta questa cartella)
   thumbnails/             le copertine
   avatars/                le foto dei canali e quelle caricate per i profili creator
   data/
@@ -295,15 +294,9 @@ La libreria è una cartella qualsiasi, dove vuoi nel sistema, fatta così:
 
 Il catalogo è un database SQLite: una modifica scrive solo le schede che cambiano, invece di riscrivere tutto. Le librerie delle versioni precedenti (`libreria.json` + `metadata.json`) si convertono da sole la prima volta che vengono aperte; i due JSON restano accanto come `*.migrato`. Il backup zip della web app contiene il database e ripristina anche gli zip vecchi.
 
-**Il catalogo va tenuto su un disco locale**: SQLite su una cartella di rete (NFS, SMB) può corrompersi. I video possono stare dove vuoi, anche su un NAS (`videosRoot`). Per copiare la libreria a mano chiudi prima server e CLI, oppure usa il backup zip, che è sempre consistente. Serve Node.js 22.13 o più recente.
+**Il catalogo va tenuto su un disco locale**: SQLite su una cartella di rete (NFS, SMB) può corrompersi. I video possono stare dove vuoi, anche su un NAS: monta (o collega con un link) la loro cartella su `<libreria>/videos`. Per copiare la libreria a mano chiudi prima server e CLI, oppure usa il backup zip, che è sempre consistente. Serve Node.js 22.13 o più recente.
 
-E `conf.json` ha un campo, uno solo:
-
-| Campo | A cosa serve |
-|---|---|
-| `videosRoot` | Cartella dei **file video**. `null` = la cartella `videos/` dentro la libreria, il caso *autoportante*: copi la cartella e hai copiato tutto. Altrimenti un percorso **assoluto**, per tenere i file pesanti su un disco dedicato: `"D:\\YouTube\\Video"`. |
-
-È l'unica cosa che la libreria non può dedurre da sé, e per questo l'unica che si porta dietro. Nei percorsi Windows dentro il JSON serve la **doppia** backslash.
+`data/conf.json` oggi è vuoto: i video stanno sempre in `<libreria>/videos` (per tenerli su un altro disco si monta lì la loro cartella), e copertine e avatar in `thumbnails/` e `avatars/`. Un `videosRoot` rimasto da una versione precedente viene ignorato, con un avviso all'avvio.
 
 ### 2. L'applicazione — un file per programma
 
@@ -332,8 +325,6 @@ Quasi tutto si cambia dal menu **Impostazioni** (o dalla pagina Impostazioni del
 > **Perché divisi.** Qualità, parallelismo e percorsi di programmi sono scelte di chi usa il computer, non proprietà dell'archivio: tenerle nella libreria la rendeva intrasportabile — copiata su un altro PC o montata in un container si portava dietro la porta di quel container e un percorso di VLC che lì non esisteva. Ora la libreria contiene solo ciò che è suo, e si sposta senza portarsi dietro niente di estraneo.
 
 > **I percorsi dei binari non si configurano affatto: si trovano.** yt-dlp e ffmpeg si cercano in `config/tools/` (accanto alle impostazioni) e poi nel PATH di sistema; il file dei cookie sta accanto alle impostazioni (`config/cookies.txt`). Seguono l'**installazione**, non la libreria: dieci librerie condividono un solo yt-dlp, e una libreria su un disco esterno non deve pretendere di avere i binari accanto ai video.
-
-> **Se il disco di `videosRoot` non è collegato, l'app non parte** (`ENOENT ... mkdir`). È un difetto noto, registrato in [`docs/PIANO.md`](docs/PIANO.md) → "Bug noti". Ripiego: ricollega il disco, o rimetti `videosRoot` a `null`.
 
 ---
 

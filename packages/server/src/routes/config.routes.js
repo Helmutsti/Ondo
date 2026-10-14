@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import {
-  loadLibraryConfig, getPaths, setVideosRoot, getCookiesStatus, saveCookiesFile, deleteCookiesFile,
+  getPaths, getCookiesStatus, saveCookiesFile, deleteCookiesFile,
   getQuality, setQuality, qualityLabel, sameQuality, QUALITY_LEVELS,
   getJobParallelism,
   getMetadataParallelism,
@@ -11,14 +11,12 @@ import { asyncRoute } from '../lib/asyncRoute.js';
 export const configRouter = Router();
 
 // Sola lettura delle impostazioni rilevanti per la UI: la radice della libreria
-// attiva, la cartella video (l'unica spostabile — copertine e avatar stanno in
-// `thumbnails/` e `avatars/` dentro la libreria), e la qualità predefinita di
+// attiva, la cartella video (sempre <libreria>/videos), e la qualità predefinita di
 // download (stesso menu della CLI — QUALITY_LEVELS è la fonte unica, il web non
 // lo reimplementa).
 configRouter.get(
   '/config',
   asyncRoute(async (req, res) => {
-    const cfg = loadLibraryConfig();
     const paths = getPaths();
     const quality = getQuality();
     res.json({
@@ -26,7 +24,6 @@ configRouter.get(
       // copertine e avatar stanno in cima alla libreria. Si espone la radice
       // della libreria, che è l'informazione utile ora.
       libraryRoot: paths.libraryRoot,
-      videosRoot: cfg.videosRoot ?? null,
       videosDirResolved: paths.videosDir,
       cookies: getCookiesStatus(),
       quality,
@@ -57,14 +54,6 @@ configRouter.delete(
   '/config/cookies',
   asyncRoute(async (req, res) => {
     res.json(deleteCookiesFile());
-  })
-);
-
-// Imposta la posizione della cartella dei video (separata da copertine/avatar).
-configRouter.post(
-  '/config/videos-root',
-  asyncRoute(async (req, res) => {
-    res.json(setVideosRoot(req.body?.path));
   })
 );
 

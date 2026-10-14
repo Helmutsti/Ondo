@@ -142,11 +142,8 @@ export const restoreBackup = (file) =>
     body: file
   });
 
-// Impostazioni: posizione della cartella video (l'unica spostabile — copertine
-// e avatar vivono fissi dentro la libreria).
+// Impostazioni lette dal server: libreria, cookie, qualità, parallelismo.
 export const getConfig = () => request('/api/config');
-export const setVideosRoot = (path) =>
-  request('/api/config/videos-root', { method: 'POST', body: JSON.stringify({ path }) });
 
 // Qualità predefinita dei download (stesso menu della CLI): { kind, height }
 // come ricevuto da getConfig().qualityLevels.

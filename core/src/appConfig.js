@@ -2,7 +2,7 @@
 //
 // La divisione è questa, e la regola per decidere dove va un campo è una sola:
 //
-//   libreria     (<libreria>/data/conf.json)  →  dove sono i video
+//   libreria     (<libreria>/data/conf.json)  →  ciò che è della libreria (oggi niente)
 //   applicazione (questo file)                →  tutto il resto
 //
 // «Dove sono i video» è l'unica cosa che descrive *quell'archivio* e che

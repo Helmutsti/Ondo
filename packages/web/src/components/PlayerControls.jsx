@@ -222,8 +222,10 @@ export function PlayerControls({ video, container, compact, quality, settingsOpe
   const pct = duration ? (current / duration) * 100 : 0;
   const bufPct = duration ? (bufferedEnd / duration) * 100 : 0;
 
-  const canPiP = !compact && typeof document !== 'undefined' && document.pictureInPictureEnabled && quality !== 'audio';
+  // Mini-player e PiP si escludono: con il mini-player attivo (su desktop) c'è
+  // solo «minimizza»; spento, o su telefono, c'è il Picture in Picture.
   const canMinimize = !compact && miniEnabled && typeof window !== 'undefined' && window.matchMedia('(min-width: 641px)').matches;
+  const canPiP = !compact && !canMinimize && typeof document !== 'undefined' && document.pictureInPictureEnabled && quality !== 'audio';
 
   return (
     <div

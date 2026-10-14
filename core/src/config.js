@@ -7,25 +7,18 @@ import { deepMerge } from './lib/deepMerge.js';
 import { loadAppConfig, appConfigDir } from './appConfig.js';
 import { DATA_DIR_NAME, CATALOG_FILE_NAME, LIBRARY_CONFIG_FILE_NAME, libraryRoot, toolsRoot } from './library.js';
 
-// M96 — il file di configurazione della LIBRERIA contiene UNA cosa sola: dove
-// stanno i video. Tutto il resto (qualità, parallelismo, formato, porta, VLC) è
+// M96 — il file di configurazione della LIBRERIA (data/conf.json). Conteneva
+// una cosa sola, dove stavano i video (`videosRoot`); ora i video stanno sempre
+// in <libreria>/videos e il file resta vuoto, pronto per ciò che è davvero
+// della libreria. Tutto il resto (qualità, parallelismo, formato, porta, VLC) è
 // passato nel file dell'APPLICAZIONE, vedi appConfig.js — che spiega anche la
 // regola per decidere dove va un campo.
 //
-// Perché i video sono l'unica eccezione: sono la sola cosa che la libreria non
-// può dedurre. Sono grandi, vivono spesso su un altro disco, e nessuna
-// convenzione può indovinare quale. Tutto ciò che è deducibile (data/, media/)
-// o che è proprietà della macchina (i binari, VLC) non ha motivo di stare qui.
-const DEFAULT_CONFIG = {
-  // Cartella dei soli file video (con sottocartelle per creator dentro).
-  // null = la cartella `videos/` DENTRO la libreria: è il caso autoportante, in
-  // cui libreria e video si spostano insieme senza aggiornare nulla.
-  // Altrimenti un percorso ASSOLUTO, per i video su un disco dedicato.
-  // Copertine e avatar vivono comunque in `thumbnails/` e `avatars/` dentro la
-  // libreria e non sono spostabili: sono piccoli e sono stato della libreria.
-  // I video no — per questo sono gli unici con un percorso proprio.
-  videosRoot: null
-};
+// I video stanno SEMPRE in <libreria>/videos: chi li vuole su un altro disco
+// monta quella cartella (bind mount Docker, link simbolico, junction), e la
+// libreria resta autoportante anche così. Prima c'era `videosRoot`, un percorso
+// in questo file: un'impostazione in più che il binding fa già meglio.
+const DEFAULT_CONFIG = {};
 
 // Il file della libreria ATTIVA: dipende da quale libreria si sta usando
 // (M98: la cartella corrente), quindi è una funzione e non una costante.
@@ -36,7 +29,7 @@ function configPath() {
 let cachedConfig = null;
 
 /**
- * Le impostazioni della LIBRERIA attiva (solo `videosRoot`).
+ * Le impostazioni della LIBRERIA attiva.
  *
  * M98 — se il file non c'è si usano i default **in memoria**, senza scriverlo.
  * Prima lo creava, e con la libreria presa dalla cartella corrente quello
@@ -51,6 +44,7 @@ export function loadLibraryConfig() {
   const userConfig = existsSync(file) ? JSON.parse(readFileSync(file, 'utf-8')) : {};
 
   cachedConfig = deepMerge(DEFAULT_CONFIG, userConfig);
+  warnLegacyVideosRoot(cachedConfig);
   return cachedConfig;
 }
 
@@ -86,52 +80,18 @@ export function updateLibraryConfig(patch) {
   return loadLibraryConfig();
 }
 
-// Imposta la posizione della cartella dei VIDEO (videosRoot), la sola
-// spostabile — copertine e avatar restano dentro la libreria. Modalità
-// "solo ripuntamento": NON sposta alcun file — l'utente sposta la cartella e
-// poi indica il percorso, che qui viene solo validato e persistito. Le
-// sottocartelle per creator vivono direttamente dentro questa cartella.
-export function setVideosRoot(newPath) {
-  if (typeof newPath !== 'string' || !newPath.trim()) {
-    throw new Error('Percorso non valido.');
-  }
-  const value = newPath.trim();
-  // M95 — solo percorsi ASSOLUTI. Un percorso relativo è ambiguo appena il
-  // catalogo viene letto da un altro punto d'ingresso: "videos" significa una
-  // cartella diversa per la CLI del repo, per il pacchetto installato
-  // globalmente e per il container. L'unico relativo che ha un senso univoco è
-  // "dentro il catalogo", e quello si esprime con null (vedi DEFAULT_CONFIG),
-  // non con una stringa.
-  // I valori relativi già presenti in un conf.json continuano a essere
-  // risolti da getPaths (retrocompatibilità): qui si impedisce solo di
-  // scriverne di nuovi.
-  if (!path.isAbsolute(value)) {
-    throw new Error(
-      `Serve un percorso assoluto (es. ${process.platform === 'win32' ? 'D:\\YouTube\\Video' : '/mnt/media/video'}); ` +
-      'per tenere i video dentro il catalogo, azzera invece la cartella con clearVideosRoot.'
-    );
-  }
-  const resolved = path.resolve(value);
-  if (!existsSync(resolved)) {
-    throw new Error(
-      `Il percorso non esiste: ${resolved}. Crea o sposta prima la cartella dei video in questa posizione, poi imposta il percorso.`
-    );
-  }
-  if (!statSync(resolved).isDirectory()) {
-    throw new Error(`Il percorso non è una cartella: ${resolved}.`);
-  }
-  updateLibraryConfig({ videosRoot: value });
-  return { videosRoot: value, resolved, requiresRestart: true };
-}
-
-// M95 — rimette i video DENTRO il catalogo (`videosRoot: null`), che è il caso
-// autoportante. Serve come contrario esplicito di setVideosRoot: da quando i
-// percorsi relativi non si accettano più, "torna al default" non è più
-// esprimibile passando una stringa.
-// Come setVideosRoot NON sposta alcun file: cambia solo dove si guarda.
-export function clearVideosRoot() {
-  updateLibraryConfig({ videosRoot: null });
-  return { videosRoot: null, resolved: path.join(libraryRoot(), 'videos'), requiresRestart: true };
+// Un conf.json di prima può avere ancora `videosRoot`: non si usa più, e lo si
+// dice una volta sola invece di far fallire l'avvio (i video non spariscono:
+// basta montare la loro cartella su <libreria>/videos).
+let legacyWarned = false;
+function warnLegacyVideosRoot(config) {
+  if (legacyWarned || !config.videosRoot) return;
+  legacyWarned = true;
+  console.warn(
+    `[ondo] "videosRoot" in ${configPath()} è ignorato: i video stanno sempre in ` +
+    `${path.join(libraryRoot(), 'videos')}. Per tenerli su un altro disco monta lì la loro cartella ` +
+    `(bind mount Docker o link simbolico), poi togli la riga dal file.`
+  );
 }
 
 // Cookie per YouTube (video privati/non listati/con limite d'età) — file
@@ -201,7 +161,7 @@ export function expectedToolNames(platform = process.platform) {
 }
 
 export function getPaths() {
-  const config = loadLibraryConfig();
+  loadLibraryConfig(); // solo per l'avviso su un `videosRoot` rimasto
   // M96 — data/ e i video seguono la LIBRERIA (che può stare altrove);
   // tools/ e i cookie seguono l'INSTALLAZIONE (dove sta il codice). Nel caso
   // normale le due radici coincidono.
@@ -209,7 +169,7 @@ export function getPaths() {
   // M97 — il layout della libreria, quattro cartelle in cima e i file
   // funzionali dentro data/:
   //
-  //   <libreria>/videos/          i file video (o altrove: vedi videosRoot)
+  //   <libreria>/videos/          i file video (altrove? si monta questa cartella)
   //   <libreria>/thumbnails/      le copertine
   //   <libreria>/avatars/         le foto profilo dei canali
   //   <libreria>/data/            libreria.db (catalogo e metadati, SQLite),
@@ -219,13 +179,8 @@ export function getPaths() {
   // dei video. `data/` resta per ciò che è funzionale — il catalogo e i file di
   // servizio — e non contiene più immagini.
   const dataDir = path.join(LIBRARY_ROOT, DATA_DIR_NAME);
-  // I video sono l'unica cartella spostabile: sono grandi e spesso su un disco
-  // dedicato, ed è l'unica cosa che conf.json contiene. Se videosRoot non è
-  // impostato si ricade su <libreria>/videos. video.localPath resta relativo a
-  // questa cartella (videosDir), qualunque sia la sua posizione.
-  const videosDir = config.videosRoot
-    ? path.resolve(LIBRARY_ROOT, config.videosRoot)
-    : path.join(LIBRARY_ROOT, 'videos');
+  // video.localPath è relativo a questa cartella (videosDir).
+  const videosDir = path.join(LIBRARY_ROOT, 'videos');
   const thumbnailsDir = path.join(LIBRARY_ROOT, 'thumbnails');
   const avatarsDir = path.join(LIBRARY_ROOT, 'avatars');
   const jobsDir = path.join(dataDir, 'jobs');

@@ -33,7 +33,7 @@ import { startBackupScheduler } from './services/backupScheduler.js';
 import { clearScratch, scratchRoot } from './lib/scratch.js';
 import { getDb } from './catalog/db.js';
 import { mergeLibrary } from './services/mergeService.js';
-import { loadLibraryConfig, getPaths, getToolPaths, updateLibraryConfig, setVideosRoot, clearVideosRoot, getCookiesStatus, saveCookiesFile, deleteCookiesFile, expectedToolNames } from './config.js';
+import { loadLibraryConfig, getPaths, getToolPaths, updateLibraryConfig, getCookiesStatus, saveCookiesFile, deleteCookiesFile, expectedToolNames } from './config.js';
 import { loadAppConfig, updateAppConfig, setAppId, getAppId, appConfigPath, appConfigDir } from './appConfig.js';
 import { isLibrary, initLibrary, libraryRoot, currentLibrary, setLibraryOverride, NotALibraryError, toolsRoot } from './library.js';
 import { isPackagedInstall } from './lib/installRoot.js';
@@ -256,7 +256,7 @@ export {
   // fisici, solo metadati/copertine/avatar, il più completo vince
   mergeLibrary,
   // M96 — due configurazioni distinte:
-  //   libreria     → solo `videosRoot`, dentro la libreria
+  //   libreria     → data/conf.json, dentro la libreria (oggi vuoto)
   //   applicazione → tutto il resto, un file per applicazione (cli/web)
   // Vedi appConfig.js per la regola con cui si decide dove va un campo.
   loadLibraryConfig,
@@ -301,10 +301,6 @@ export {
   // scrive nel messaggio d'errore a un altro processo).
   acquireDataLock,
   setLockRole,
-  // impostazioni a runtime: posizione della cartella video dedicata, separata
-  // da copertine/avatar (M38/M97, che vivono fisse dentro la libreria)
-  setVideosRoot,
-  clearVideosRoot,
   // cookie YouTube (<config>/cookies.txt): upload/cancellazione da Impostazioni
   getCookiesStatus,
   saveCookiesFile,

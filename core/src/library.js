@@ -29,9 +29,8 @@ export const DATA_DIR_NAME = 'data';
 export const CATALOG_FILE_NAME = DB_FILE_NAME;
 export const LIBRARY_CONFIG_FILE_NAME = 'conf.json';
 
-// Le cartelle di una libreria. I video sono qui dentro solo quando `videosRoot`
-// è null (il caso autoportante); se punta altrove, quella cartella la crea/gestisce
-// l'utente — noi non inventiamo cartelle su dischi altrui.
+// Le cartelle di una libreria. I video stanno sempre qui dentro: per tenerli su
+// un altro disco si monta quella cartella su `videos/` (bind mount, link).
 const LIBRARY_DIRS = ['videos', 'thumbnails', 'avatars'];
 
 /**
@@ -77,7 +76,7 @@ export function initLibrary(dir) {
   // il peggiore dei due stati.
   createDatabase(path.join(dataDir, CATALOG_FILE_NAME), createEmptyCatalog());
   created.push(`${DATA_DIR_NAME}/${CATALOG_FILE_NAME}`);
-  writeJsonAtomic(path.join(dataDir, LIBRARY_CONFIG_FILE_NAME), { videosRoot: null });
+  writeJsonAtomic(path.join(dataDir, LIBRARY_CONFIG_FILE_NAME), {});
   created.push(`${DATA_DIR_NAME}/${LIBRARY_CONFIG_FILE_NAME}`);
 
   return { root, created };

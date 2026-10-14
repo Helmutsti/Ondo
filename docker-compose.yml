@@ -8,7 +8,8 @@
 #                                    videos/, thumbnails/, avatars/.
 #                                    Vive dove vuoi, con percorso ASSOLUTO, ma
 #                                    su un disco LOCALE: il catalogo è SQLite.
-#                                    I video possono stare su un NAS (/videos).
+#                                    I video possono stare su un NAS (vedi
+#                                    il mount su /library/videos sotto).
 #   ./config           →  /config    le impostazioni di QUESTA applicazione
 #                                    (web.json: qualità, parallelismo, porta).
 #
@@ -54,9 +55,9 @@ services:
       # in qualunque momento (`docker volume rm`), si ricreano da sole.
       - cache:/cache
       # (Facoltativo) I video su un disco separato dal resto della libreria:
-      # monta la cartella e poi imposta "videosRoot" in
-      # library/data/conf.json — è l'unico percorso che il file contiene.
-      # - D:\Video:/videos
+      # monta la loro cartella al posto di videos/ dentro la libreria. Non c'è
+      # niente da impostare: i video stanno sempre in <libreria>/videos.
+      # - D:\Video:/library/videos
       #
       # (Facoltativo) Backup automatico della libreria (catalogo, copertine,
       # avatar; non i video) in una cartella, tipicamente sul NAS quando la
