@@ -97,6 +97,7 @@ Sotto il punto di montaggio, con `<id>` codificato con `encodeURIComponent`:
 | `GET <id>/master.m3u8` | Playlist principale, una variante per qualità. La prima è quella di partenza. |
 | `GET <id>/<qualità>/index.m3u8` | Playlist VOD completa di una qualità. |
 | `GET <id>/<qualità>/<n>.ts` | Segmento `n` (MPEG-TS, H.264 + AAC), prodotto se non è in cache. |
+| `GET <id>/audio/index.m3u8` | Solo l'audio (AAC), segmenti in `<id>/audio/<n>.ts`. Fuori dal master. |
 
 ### Opzioni
 
@@ -153,16 +154,22 @@ player.destroy();
 | `directUrl` | URL del file originale (senza: sempre HLS). |
 | `loadHls()` | Restituisce la classe `Hls` di hls.js (`npm i hls.js`). Senza, dove HLS non è nativo si usa il file. |
 | `preferHls` | `true` = HLS anche se il file sarebbe leggibile (utile per provare). |
+| `quality` | Qualità di partenza: `'auto'` (predefinita), `'original'`, una delle `info.renditions` (`'720p'`…) o `'audio'`. Se per quel video non c'è, `'auto'`. |
 | `startTime` | Secondi da cui partire. |
 | `hlsConfig` | Opzioni in più per hls.js. |
 | `onModeChange(mode, url)` | Avvisa quale sorgente è in uso. |
+| `onQualityChange(quality)` | Avvisa quando la qualità cambia, anche per un ripiego automatico. |
+
+Il player restituito ha `quality`, `qualities` (quelle che si possono chiedere, nell'ordine da mostrare in un menu) e `setQuality(q)`, che cambia sorgente restando allo stesso punto, alla stessa velocità, in pausa o in riproduzione com'era. Una qualità fissa punta alla sola playlist di quella variante: funziona anche con l'HLS nativo di Safari, che altrimenti non lascia scegliere.
+
+**Solo audio** (`'audio'`): `<id>/audio/index.m3u8`, AAC senza video, fuori dal master perché l'adattivo non lo scelga da sé. Non si converte il video, quindi parte subito e il server quasi non lavora.
 
 La scelta:
 
 1. **MKV su Safari/iPhone → HLS.** Safari non apre gli MKV, qualunque codec contengano.
 2. **MKV altrove → file.** Chrome e Firefox li leggono (anche se `canPlayType` dice di no).
 3. **Il resto → `video.canPlayType(mimeType)`** con il tipo completo, codec compresi.
-4. **Ripiego:** se il file dà errore in riproduzione, si passa a HLS dal punto in cui si era.
+4. **Ripiego:** se il file dà errore in riproduzione, o parte solo l'audio perché il browser non ne decodifica il video (larghezza 0), si passa a HLS dal punto in cui si era.
 
 HLS nativo (Safari, iPhone, iPad) non ha bisogno di hls.js.
 

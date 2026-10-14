@@ -68,14 +68,19 @@ export function createEncoder(opts) {
     // cadono sulla stessa griglia. Con i B-frame ffmpeg ritarda di due
     // fotogrammi solo le prime, e dove due conversioni si incontrano il player
     // salterebbe. Costa un po' di bitrate, e in cambio si codifica più in fretta.
-    const args = ['-hide_banner', '-loglevel', 'error', '-nostdin', '-ss', start.toFixed(3)];
+    const args = ['-hide_banner', '-loglevel', 'error', '-nostdin', '-ss', start.toFixed(3), '-i', file];
+    if (rendition.audioOnly) {
+      args.push('-map', '0:a:0', '-vn', '-sn', '-dn');
+    } else {
+      args.push(
+        '-map', '0:v:0', '-map', '0:a:0?', '-sn', '-dn',
+        '-vf', filters.join(','),
+        '-c:v', 'libx264', '-preset', preset, '-profile:v', 'high', '-level:v', '4.0', '-pix_fmt', 'yuv420p', '-bf', '0',
+        '-crf', '23', '-maxrate', String(rendition.videoBitrate), '-bufsize', String(rendition.videoBitrate * 2),
+        '-force_key_frames', `expr:gte(t,n_forced*${segmentSeconds})`, '-sc_threshold', '0'
+      );
+    }
     args.push(
-      '-i', file,
-      '-map', '0:v:0', '-map', '0:a:0?', '-sn', '-dn',
-      '-vf', filters.join(','),
-      '-c:v', 'libx264', '-preset', preset, '-profile:v', 'high', '-level:v', '4.0', '-pix_fmt', 'yuv420p', '-bf', '0',
-      '-crf', '23', '-maxrate', String(rendition.videoBitrate), '-bufsize', String(rendition.videoBitrate * 2),
-      '-force_key_frames', `expr:gte(t,n_forced*${segmentSeconds})`, '-sc_threshold', '0',
       '-c:a', 'aac', '-b:a', String(rendition.audioBitrate), '-ac', '2', '-ar', '48000',
       '-output_ts_offset', start.toFixed(3),
       '-f', 'hls',

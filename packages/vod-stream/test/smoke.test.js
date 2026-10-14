@@ -80,6 +80,7 @@ test('info.json: tipo esatto del file e qualità fino alla sua risoluzione', asy
   assert.equal(Math.round(info.duration), SECONDS);
   assert.deepEqual(info.renditions.map((r) => r.name), ['360p', '720p', '1080p']);
   assert.deepEqual(info.renditions[0], { name: '360p', width: 640, height: 360 });
+  assert.equal(info.audioPlaylist, 'audio/index.m3u8');
 });
 
 test('master: varianti H.264/AAC, la prima è quella di partenza, fps limitati a 30', async () => {
@@ -140,4 +141,19 @@ test('ultimo segmento più corto e richieste fuori misura', async () => {
   assert.equal((await get(`/h264/360p/${count}.ts`)).status, 404);
   assert.equal((await get('/h264/4320p/0.ts')).status, 404);
   assert.equal((await get('/nessuno/info.json')).status, 404);
+});
+
+test('solo audio: AAC senza video, fuori dal master, sulla stessa griglia', async () => {
+  assert.doesNotMatch((await get('/av1/master.m3u8')).body.toString(), /audio\//);
+  const text = (await get('/av1/audio/index.m3u8')).body.toString();
+  assert.match(text, /#EXT-X-PLAYLIST-TYPE:VOD/);
+  const seg = await get('/av1/audio/0.ts');
+  assert.equal(seg.status, 200);
+  console.log(`   primo segmento solo audio: ${seg.ms.toFixed(0)} ms`);
+  const s0 = startTime(seg.body, 'au0.ts');
+  assert.deepEqual(s0.map((s) => s.codec_type), ['audio']);
+  assert.equal(s0[0].codec_name, 'aac');
+  const s5 = startTime((await get('/av1/audio/5.ts')).body, 'au5.ts');
+  const d = Number(s5[0].start_time) - Number(s0[0].start_time);
+  assert.ok(Math.abs(d - 20) < 0.05, `start_time 0=${s0[0].start_time} 5=${s5[0].start_time}`);
 });

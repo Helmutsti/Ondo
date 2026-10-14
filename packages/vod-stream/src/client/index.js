@@ -30,7 +30,13 @@ export function canPlayDirect(video, info) {
 /**
  * Collega un <video> a un video servito da vod-stream: il file originale se il
  * browser lo legge (massima qualità, nessun carico sul server), altrimenti HLS
- * adattivo convertito al volo.
+ * adattivo convertito al volo. La qualità si può poi forzare con setQuality.
+ *
+ * Qualità (stringhe):
+ *   'auto'      il file se il browser lo legge, altrimenti HLS adattivo
+ *   'original'  il file originale
+ *   '720p', …   una sola variante HLS (quelle di info.renditions)
+ *   'audio'     solo l'audio, in HLS (se il video ha l'audio)
  *
  * @param {HTMLVideoElement} video
  * @param {object} o
@@ -38,13 +44,21 @@ export function canPlayDirect(video, info) {
  * @param {string} [o.directUrl]     il file originale; senza, sempre HLS
  * @param {() => Promise<any>} [o.loadHls]  restituisce la classe Hls di hls.js
  * @param {boolean} [o.preferHls]    usa HLS anche se il file si potrebbe leggere
+ * @param {string} [o.quality]       qualità di partenza (predefinita 'auto'); se
+ *                                   non c'è per questo video si usa 'auto'
  * @param {number} [o.startTime]     secondi da cui partire
  * @param {object} [o.hlsConfig]     opzioni in più per hls.js
  * @param {(mode: 'direct'|'hls', url: string) => void} [o.onModeChange]
- * @returns {Promise<{ mode: string, info: object|null, destroy: () => void }>}
+ * @param {(quality: string) => void} [o.onQualityChange]
+ * @returns {Promise<{ mode: string, quality: string, qualities: string[], info: object|null,
+ *   setQuality: (q: string) => Promise<void>, destroy: () => void }>}
  */
 export async function attachVideo(video, o) {
-  const state = { mode: null, info: null, hls: null, destroyed: false, cleanup: [] };
+  const state = {
+    mode: null, quality: null, info: null, hls: null, destroyed: false,
+    directBroken: false,
+    srcCleanup: []   // listener della sorgente in uso, tolti a ogni cambio
+  };
   const base = typeof location !== 'undefined' ? location.href : undefined;
   const infoUrl = new URL(o.infoUrl, base).href;
 
@@ -55,11 +69,21 @@ export async function attachVideo(video, o) {
   if (state.destroyed) return controller();
 
   const masterUrl = state.info ? new URL(state.info.masterPlaylist, infoUrl).href : null;
+  const audioUrl = state.info?.audioPlaylist ? new URL(state.info.audioPlaylist, infoUrl).href : null;
+  const renditionNames = (state.info?.renditions ?? []).map((r) => r.name);
   const nativeHls = video.canPlayType(HLS_MIME) !== '';
+  const hlsPossible = nativeHls || !!o.loadHls;
 
   function on(type, fn, opts) {
     video.addEventListener(type, fn, opts);
-    state.cleanup.push(() => video.removeEventListener(type, fn, opts));
+    state.srcCleanup.push(() => video.removeEventListener(type, fn, opts));
+  }
+
+  function resetSource() {
+    for (const fn of state.srcCleanup) fn();
+    state.srcCleanup = [];
+    state.hls?.destroy();
+    state.hls = null;
   }
 
   function seekOnceReady(t) {
@@ -67,42 +91,51 @@ export async function attachVideo(video, o) {
     on('loadedmetadata', () => { video.currentTime = t; }, { once: true });
   }
 
-  function setMode(mode, url) {
+  function setMode(mode, url, quality) {
     state.mode = mode;
     o.onModeChange?.(mode, url);
-  }
-
-  function useDirect(startTime) {
-    video.src = o.directUrl;
-    seekOnceReady(startTime);
-    setMode('direct', o.directUrl);
-    // Ripiego: canPlayType a volte promette più di quanto il browser mantenga.
-    // Se il file dà errore si passa a HLS dal punto in cui si era.
-    if (masterUrl) {
-      let done = false;
-      const fallback = () => {
-        if (done || state.destroyed || state.mode !== 'direct') return;
-        done = true;
-        const t = video.currentTime;
-        const wasPlaying = !video.paused || video.autoplay;
-        useHls(t).then(() => { if (wasPlaying) video.play().catch(() => {}); });
-      };
-      on('error', fallback, { once: true });
-      // Peggio dell'errore: un codec video che il browser non sa decodificare
-      // ma con l'audio sì (Chrome con certi HEVC/AV1). Nessun errore, parte
-      // l'audio e l'immagine resta la copertina. Si riconosce dalla larghezza
-      // 0 a metadati caricati.
-      if (state.info?.videoCodec) {
-        on('loadedmetadata', () => { if (video.videoWidth === 0) fallback(); }, { once: true });
-      }
+    if (state.quality !== quality) {
+      state.quality = quality;
+      o.onQualityChange?.(quality);
     }
   }
 
-  async function useHls(startTime) {
+  const directPlayable = () => !!o.directUrl && !state.directBroken && (!masterUrl || canPlayDirect(video, state.info));
+
+  function useDirect(startTime, quality) {
+    video.src = o.directUrl;
+    seekOnceReady(startTime);
+    setMode('direct', o.directUrl, quality);
+    // Ripiego: canPlayType a volte promette più di quanto il browser mantenga.
+    // Se il file dà errore si passa a HLS dal punto in cui si era.
+    if (!masterUrl) return;
+    let done = false;
+    const fallback = () => {
+      if (done || state.destroyed || state.mode !== 'direct') return;
+      done = true;
+      state.directBroken = true;
+      const t = video.currentTime;
+      const wasPlaying = !video.paused || video.autoplay;
+      resetSource();
+      load('auto', t).then(() => { if (wasPlaying) video.play().catch(() => {}); });
+    };
+    on('error', fallback, { once: true });
+    // Peggio dell'errore: un codec video che il browser non sa decodificare
+    // ma con l'audio sì (Chrome con certi HEVC/AV1). Nessun errore, parte
+    // l'audio e l'immagine resta la copertina. Si riconosce dalla larghezza
+    // 0 a metadati caricati.
+    if (state.info?.videoCodec) {
+      on('loadedmetadata', () => { if (video.videoWidth === 0) fallback(); }, { once: true });
+    }
+  }
+
+  // HLS: il master (adattivo) o una sola playlist (una qualità, o l'audio).
+  // hls.js accetta anche una playlist singola, quindi il percorso è lo stesso.
+  async function useHls(startTime, url, quality) {
     if (nativeHls) {
-      video.src = masterUrl;
+      video.src = url;
       seekOnceReady(startTime);
-      setMode('hls', masterUrl);
+      setMode('hls', url, quality);
       return;
     }
     const Hls = o.loadHls ? await o.loadHls() : null;
@@ -116,33 +149,61 @@ export async function attachVideo(video, o) {
         maxBufferLength: 30,
         ...o.hlsConfig
       });
-      hls.loadSource(masterUrl);
+      hls.loadSource(url);
       hls.attachMedia(video);
       state.hls = hls;
-      setMode('hls', masterUrl);
+      setMode('hls', url, quality);
       return;
     }
     // Né HLS nativo né hls.js: resta solo il file.
-    if (o.directUrl) useDirect(startTime);
+    if (o.directUrl) useDirect(startTime, 'original');
   }
 
-  const direct = o.directUrl && !o.preferHls && (!masterUrl || canPlayDirect(video, state.info));
-  if (direct) useDirect(o.startTime);
-  else if (masterUrl) await useHls(o.startTime);
-  else if (o.directUrl) useDirect(o.startTime);
+  async function load(quality, startTime) {
+    if (quality === 'original' && o.directUrl && !state.directBroken) return useDirect(startTime, 'original');
+    if (quality === 'audio' && audioUrl && hlsPossible) return useHls(startTime, audioUrl, 'audio');
+    if (renditionNames.includes(quality) && masterUrl && hlsPossible) {
+      return useHls(startTime, new URL(`${encodeURIComponent(quality)}/index.m3u8`, masterUrl).href, quality);
+    }
+    if (!o.preferHls && directPlayable()) return useDirect(startTime, 'auto');
+    if (masterUrl) return useHls(startTime, masterUrl, 'auto');
+    if (o.directUrl) return useDirect(startTime, 'auto');
+  }
+
+  await load(o.quality ?? 'auto', o.startTime);
 
   return controller();
 
   function controller() {
     return {
       get mode() { return state.mode; },
+      get quality() { return state.quality; },
       get info() { return state.info; },
+      /** Le qualità che si possono chiedere a setQuality, nell'ordine da mostrare. */
+      get qualities() {
+        const list = ['auto'];
+        if (o.directUrl && !state.directBroken && (directPlayable() || !masterUrl)) list.push('original');
+        if (masterUrl && hlsPossible) list.push(...[...renditionNames].sort((a, b) => parseInt(b, 10) - parseInt(a, 10)));
+        if (audioUrl && hlsPossible) list.push('audio');
+        return list;
+      },
+      /** Cambia qualità restando allo stesso punto, in pausa o in riproduzione com'era. */
+      async setQuality(quality) {
+        if (state.destroyed || quality === state.quality) return;
+        const t = video.currentTime;
+        const wasPlaying = !video.paused;
+        const rate = video.playbackRate;
+        resetSource();
+        await load(quality, t);
+        if (state.destroyed) return;
+        // Un nuovo src riporta la velocità a defaultPlaybackRate.
+        video.defaultPlaybackRate = rate;
+        video.playbackRate = rate;
+        if (wasPlaying) video.play().catch(() => {});
+      },
       destroy() {
         state.destroyed = true;
-        for (const fn of state.cleanup) fn();
-        state.cleanup = [];
-        state.hls?.destroy();
-        state.hls = null;
+        resetSource();
         video.removeAttribute('src');
         video.load();
       }

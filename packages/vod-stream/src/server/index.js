@@ -8,6 +8,7 @@
 //   GET <id>/master.m3u8          playlist HLS principale, una variante per qualità
 //   GET <id>/<qualità>/index.m3u8 playlist VOD completa di una qualità
 //   GET <id>/<qualità>/<n>.ts     segmento n, prodotto su richiesta se non è in cache
+//   GET <id>/audio/index.m3u8     solo l'audio (fuori dal master: l'ABR non deve sceglierlo)
 
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -24,6 +25,9 @@ export const DEFAULT_RENDITIONS = [
   { name: '1440p', height: 1440, videoBitrate: 10_000_000, audioBitrate: 160_000 },
   { name: '2160p', height: 2160, videoBitrate: 18_000_000, audioBitrate: 160_000 }
 ];
+
+/** Solo audio: niente video da convertire, quindi parte subito e costa poco. */
+export const AUDIO_RENDITION = { name: 'audio', audioOnly: true, audioBitrate: 128_000 };
 
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 
@@ -102,8 +106,9 @@ export function createVodStream(options = {}) {
       height: i.height,
       fps: i.fps,
       renditions: list.map(({ name, width, height }) => ({ name, width, height })),
-      // Relativo a info.json: il client lo risolve con new URL(…, infoUrl).
-      masterPlaylist: 'master.m3u8'
+      // Relativi a info.json: il client li risolve con new URL(…, infoUrl).
+      masterPlaylist: 'master.m3u8',
+      audioPlaylist: i.hasAudio ? 'audio/index.m3u8' : null
     };
   }
 
@@ -173,7 +178,9 @@ export function createVodStream(options = {}) {
       if (decoded.length === 3) {
         const [id, name, leaf] = decoded;
         const { file, info: i, list, dir } = await load(id);
-        const rendition = list.find((r) => r.name === name);
+        const rendition = name === AUDIO_RENDITION.name
+          ? (i.hasAudio ? AUDIO_RENDITION : null)
+          : list.find((r) => r.name === name);
         if (!rendition) return notFound();
         if (leaf === 'index.m3u8') {
           return send(res, 200, 'application/vnd.apple.mpegurl', mediaPlaylist(i.duration, segmentSeconds), { ...common, 'Cache-Control': 'no-cache' });
