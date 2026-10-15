@@ -10,6 +10,7 @@ import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { ignoreWithConfirm } from '../lib/ignoreAction.js';
 import { useActivity } from '../lib/activityStore.js';
 import { actionsFor } from '../lib/reviewActions.js';
+import { isLost } from '../lib/libraryFilters.js';
 import { useTitle } from '../hooks/useTitle.js';
 import { startDownload } from '../lib/downloadActions.js';
 import { formatDuration, videoDisplayDate, channelKey, channelInitial, formatBytes, formatBitrate } from '../lib/format.js';
@@ -102,7 +103,9 @@ export function VideoDetailPage() {
 
   // "Video suggeriti" (punto 1 del backlog): selezione casuale su tutta la
   // libreria (non più limitata allo stesso canale), esclusi il video corrente,
-  // gli archiviati e quelli spariti da YouTube (anche se salvati in locale). Estratta in una funzione così il pulsante "rimescola" può
+  // gli archiviati e quelli spariti da YouTube senza un file (i «Persi»: non
+  // si possono più guardare; i «Salvati» invece sì, e restano).
+  // Estratta in una funzione così il pulsante "rimescola" può
   // ripescarne 5 nuovi su richiesta, ri-scaricando la lista dal server (vede
   // eventuali video aggiunti/rimossi/archiviati nel frattempo).
   const loadRelated = useCallback(() => {
@@ -110,7 +113,7 @@ export function VideoDetailPage() {
     setRelatedLoading(true);
     listVideos()
       .then((videos) => {
-        const pool = videos.filter((v) => v.id !== video.id && !v.hidden && v.presence !== 'removed');
+        const pool = videos.filter((v) => v.id !== video.id && !v.hidden && !isLost(v));
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
         setRelated(shuffled.slice(0, 5));
       })
