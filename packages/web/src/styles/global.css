@@ -1211,6 +1211,8 @@ html[data-discreet="all"][data-discreet-peek] .discreet-text:hover { filter: non
 }
 .set-row + .set-row { border-top: 1px solid var(--border2); }
 .set-row--stack { flex-direction: column; align-items: stretch; }
+/* In colonna la flex-basis di 320px diventerebbe un'altezza: niente crescita. */
+.set-row--stack .set-row-text { flex: none; }
 .set-row-text { flex: 1 1 320px; min-width: 0; }
 .set-row-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); }
 .set-row-title svg { color: var(--ink2); flex: none; }
