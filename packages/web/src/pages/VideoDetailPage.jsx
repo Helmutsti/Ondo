@@ -101,8 +101,8 @@ export function VideoDetailPage() {
   // comandi sopra il video (components/PlayerControls.jsx).
 
   // "Video suggeriti" (punto 1 del backlog): selezione casuale su tutta la
-  // libreria (non più limitata allo stesso canale), esclusi il video corrente
-  // e gli archiviati. Estratta in una funzione così il pulsante "rimescola" può
+  // libreria (non più limitata allo stesso canale), esclusi il video corrente,
+  // gli archiviati e quelli spariti da YouTube (anche se salvati in locale). Estratta in una funzione così il pulsante "rimescola" può
   // ripescarne 5 nuovi su richiesta, ri-scaricando la lista dal server (vede
   // eventuali video aggiunti/rimossi/archiviati nel frattempo).
   const loadRelated = useCallback(() => {
@@ -110,7 +110,7 @@ export function VideoDetailPage() {
     setRelatedLoading(true);
     listVideos()
       .then((videos) => {
-        const pool = videos.filter((v) => v.id !== video.id && !v.hidden);
+        const pool = videos.filter((v) => v.id !== video.id && !v.hidden && v.presence !== 'removed');
         const shuffled = [...pool].sort(() => Math.random() - 0.5);
         setRelated(shuffled.slice(0, 5));
       })
