@@ -254,12 +254,12 @@ export function CatalogPage() {
         </select>
       </div>
 
-      {(view.value === 'salvati' || view.value === 'persi') && filtered.length > 0 && (
+      {view.value === 'persi' && filtered.length > 0 && (
         <div className="banner">
           <Archive size={18} />
           <div className="banner-text">
-            <b>{view.value === 'salvati' ? 'Su YouTube non ci sono più, ma li hai salvati in tempo' : 'Spariti da YouTube prima che li scaricassi'}</b>
-            <span>{view.value === 'salvati' ? 'Il file è nella tua libreria: è l\'unica copia rimasta.' : 'Non si possono più scaricare: di questi resta solo la scheda con i metadati.'}</span>
+            <b>Spariti da YouTube prima che li scaricassi</b>
+            <span>Non si possono più scaricare: di questi resta solo la scheda con i metadati.</span>
           </div>
         </div>
       )}
