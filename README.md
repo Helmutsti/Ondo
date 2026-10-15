@@ -152,6 +152,7 @@ Senza Docker vale lo stesso con un link: `mklink /J D:\MiaLibreria\videos D:\Vid
 | La pagina non si apre | `docker compose ps` deve dire `running`. Se no, `docker compose logs` spiega perché. |
 | I download falliscono tutti | Quasi sempre è yt-dlp da aggiornare: `docker compose pull` e `docker compose up -d`. Per vedere quale versione hai: `docker exec youtubecatalog-web yt-dlp --version` |
 | L'app parte ma il catalogo è vuoto | Sta guardando un'altra cartella. `docker compose logs` mostra su quale libreria ha aperto; controlla il percorso a sinistra di `:/library`. |
+| Dopo un aggiornamento il catalogo c'è ma nessun video si apre | Dalla v3.3.0 `videosRoot` in `conf.json` non si legge più (lo dice un avviso nei log). Se montavi i video su `/videos`, monta la stessa cartella su `/library/videos`, poi togli `videosRoot` da `data/conf.json`. |
 | «Libreria inizializzata» quando non te lo aspettavi | Il percorso `/library` puntava a una cartella vuota o inesistente: quasi sempre un disco esterno scollegato, o una lettera di unità sbagliata. |
 
 ### In alternativa: costruire l'immagine dai sorgenti
