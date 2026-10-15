@@ -16,9 +16,9 @@ direttamente da youtube.com, senza passare dalla webapp.
 
 ## Installazione
 
-1. Il server deve essere avviato (`npm run web:start` dalla cartella del
-   progetto, o `npm run web` per build+avvio) — lo script parla con
-   `http://localhost:3001` di default.
+1. Lo script parla con `https://ondo.casa.manuelcucca.com` di default (il
+   server di casa). Per usarlo con un server in locale (`npm run web:start`)
+   cambia l'indirizzo come spiegato sotto.
 2. Installa [Tampermonkey](https://www.tampermonkey.net/) (o Violentmonkey) nel
    browser.
 3. Apri il pannello di Tampermonkey → **Crea un nuovo script**, cancella il
@@ -28,13 +28,12 @@ direttamente da youtube.com, senza passare dalla webapp.
 
 ## Cambiare l'indirizzo del server
 
-Se il server non gira su `http://localhost:3001` (porta diversa, o macchina
-diversa in LAN): icona di Tampermonkey nella barra del browser → **Ondo:
+Per usare un altro server (es. `http://localhost:3001`): icona di Tampermonkey nella barra del browser → **Ondo:
 cambia indirizzo del server…** nell'elenco dei comandi dello script.
 
-Se l'indirizzo è un host diverso da `localhost`/`127.0.0.1`, Tampermonkey
-chiederà un permesso di connessione la prima volta (whitelist `@connect` nello
-script — dichiarata solo per `localhost`/`127.0.0.1`, l'uso previsto).
+Se l'indirizzo è un host diverso da `ondo.casa.manuelcucca.com`, `localhost`
+o `127.0.0.1`, Tampermonkey chiederà un permesso di connessione la prima volta
+(whitelist `@connect` nello script).
 
 ## Perché GM_xmlhttpRequest e non fetch/EventSource nativi
 

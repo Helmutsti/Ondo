@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ondo Scripter
 // @namespace    ondo-catalog
-// @version      1.4.1
+// @version      1.5.0
 // @description  Scarica video YouTube nella libreria Ondo direttamente da youtube.com, senza passare dalla webapp
 // @match        https://www.youtube.com/*
 // @grant        GM_xmlhttpRequest
@@ -9,6 +9,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_deleteValue
+// @connect      ondo.casa.manuelcucca.com
 // @connect      localhost
 // @connect      127.0.0.1
 // @run-at       document-end
@@ -39,10 +41,22 @@
   // (icona dell'estensione → comandi dello script), che GM_registerMenuCommand
   // aggiunge da solo — un posto che l'utente già conosce, senza inventarne uno
   // nuovo dentro la pagina.
-  const DEFAULT_API_BASE = 'http://localhost:3001';
+  // Il server di casa (la VM), raggiungibile in https. Per un server in
+  // locale si cambia dal menu di Tampermonkey (vedi sotto).
+  const DEFAULT_API_BASE = 'https://ondo.casa.manuelcucca.com';
   const DOWNLOAD_JOB_TYPES = new Set(['downloadSingle', 'downloadPending', 'quickDownload']);
   const POLL_MS = 1000;
   const POLL_MS_BACKOFF = 5000; // dopo errori ripetuti (server non raggiungibile)
+
+  // Fino alla 1.4.x il default era http://localhost:3001 e il menu lo
+  // salvava così com'era: un valore locale rimasto in memoria nasconderebbe
+  // il nuovo default. Si toglie una volta; chi vuole il locale lo rimette.
+  if (!GM_getValue('apiBaseMigrated', false)) {
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(String(GM_getValue('apiBase', '')))) {
+      GM_deleteValue('apiBase');
+    }
+    GM_setValue('apiBaseMigrated', true);
+  }
 
   function getApiBase() {
     return String(GM_getValue('apiBase', DEFAULT_API_BASE) || DEFAULT_API_BASE).replace(/\/+$/, '');
@@ -52,7 +66,7 @@
   }
 
   GM_registerMenuCommand('Ondo: cambia indirizzo del server…', () => {
-    const next = window.prompt('Indirizzo del server Ondo (es. http://localhost:3001):', getApiBase());
+    const next = window.prompt(`Indirizzo del server Ondo (es. ${DEFAULT_API_BASE} o http://localhost:3001):`, getApiBase());
     if (next && next.trim()) setApiBase(next.trim());
   });
 
