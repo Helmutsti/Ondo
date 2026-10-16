@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ondo Scripter
 // @namespace    ondo-catalog
-// @version      1.6.2
+// @version      1.6.3
 // @description  Scarica video YouTube nella libreria Ondo direttamente da youtube.com, senza passare dalla webapp
 // @match        https://www.youtube.com/*
 // @grant        GM_xmlhttpRequest
@@ -571,6 +571,9 @@
     container.style.setProperty('flex-direction', 'row', 'important');
     container.style.setProperty('flex-wrap', 'nowrap', 'important');
     container.style.setProperty('align-items', 'center', 'important');
+    // A destra come li tiene YouTube: con #menu ridotto alla sua larghezza
+    // (flex 0 1 auto qui sotto) la riga altrimenti si schiaccia a sinistra.
+    container.style.setProperty('justify-content', 'flex-end', 'important');
     for (const child of container.children) {
       if (child === watchBtnEl) continue;
       child.style.setProperty('min-width', '0', 'important');
