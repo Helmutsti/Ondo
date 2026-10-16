@@ -24,12 +24,12 @@
 
 services:
   web:
-    image: ghcr.io/helmutsti/youtubecatalog-web:latest
+    image: ghcr.io/helmutsti/ondo-web:latest
     # Per buildare dai sorgenti locali invece di scaricare l'immagine pubblicata:
     # build:
     #   context: .
     #   dockerfile: Dockerfile.web
-    container_name: youtubecatalog-web
+    container_name: ondo-web
     restart: unless-stopped
     ports:
       # host:container — cambia la parte a sinistra se 3001 è già occupata.

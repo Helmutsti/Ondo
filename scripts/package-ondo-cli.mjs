@@ -118,7 +118,7 @@ Serve **Node.js 20 o superiore**.
 ## Installazione
 
 \`\`\`bash
-npm install -g https://github.com/Helmutsti/YouTubeCatalog/releases/download/<tag>/ondo-cli-<tag>.tgz
+npm install -g https://github.com/Helmutsti/Ondo/releases/download/<tag>/ondo-cli-<tag>.tgz
 ondo setup   # scarica yt-dlp + ffmpeg + ffprobe (per il tuo sistema)
 \`\`\`
 

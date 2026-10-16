@@ -1,4 +1,4 @@
-# YouTube Catalog (Ondo) — core, CLI e web app
+# Ondo — core, CLI e web app
 
 Archivio personale e locale dei video YouTube dei tuoi creator preferiti: li scarica per non perderli, li cataloga e li rende sfogliabili e riproducibili — da un menu a terminale o dal browser.
 
@@ -46,8 +46,8 @@ Crea una cartella qualsiasi — per esempio `C:\OndoWeb` — e mettici dentro un
 ```yaml
 services:
   web:
-    image: ghcr.io/helmutsti/youtubecatalog-web:latest
-    container_name: youtubecatalog-web
+    image: ghcr.io/helmutsti/ondo-web:latest
+    container_name: ondo-web
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -105,7 +105,7 @@ Per lavorare su **due librerie insieme** basta un secondo servizio nello stesso 
 
 ```yaml
   archivio2019:
-    image: ghcr.io/helmutsti/youtubecatalog-web:latest
+    image: ghcr.io/helmutsti/ondo-web:latest
     container_name: ondo-2019
     ports: ["3002:3001"]
     volumes:
@@ -150,9 +150,10 @@ Senza Docker vale lo stesso con un link: `mklink /J D:\MiaLibreria\videos D:\Vid
 | Sintomo | Da guardare |
 |---|---|
 | La pagina non si apre | `docker compose ps` deve dire `running`. Se no, `docker compose logs` spiega perché. |
-| I download falliscono tutti | Quasi sempre è yt-dlp da aggiornare: `docker compose pull` e `docker compose up -d`. Per vedere quale versione hai: `docker exec youtubecatalog-web yt-dlp --version` |
+| I download falliscono tutti | Quasi sempre è yt-dlp da aggiornare: `docker compose pull` e `docker compose up -d`. Per vedere quale versione hai: `docker exec ondo-web yt-dlp --version` |
 | L'app parte ma il catalogo è vuoto | Sta guardando un'altra cartella. `docker compose logs` mostra su quale libreria ha aperto; controlla il percorso a sinistra di `:/library`. |
 | Dopo un aggiornamento il catalogo c'è ma nessun video si apre | Dalla v3.3.0 `videosRoot` in `conf.json` non si legge più (lo dice un avviso nei log). Se montavi i video su `/videos`, monta la stessa cartella su `/library/videos`, poi togli `videosRoot` da `data/conf.json`. |
+| `docker compose pull` non trova più aggiornamenti | Il progetto si chiamava *YouTube Catalog*: nel tuo `docker-compose.yml` cambia `image:` in `ghcr.io/helmutsti/ondo-web:latest` e `container_name:` in `ondo-web`, poi `docker compose up -d`. La libreria non cambia. |
 | «Libreria inizializzata» quando non te lo aspettavi | Il percorso `/library` puntava a una cartella vuota o inesistente: quasi sempre un disco esterno scollegato, o una lettera di unità sbagliata. |
 
 ### In alternativa: costruire l'immagine dai sorgenti
@@ -191,10 +192,10 @@ La cartella del repo è già una libreria dopo un `npm run ondo -- init` (o lo �
 
 ## La CLI da terminale (senza clonare il repo)
 
-Dalle [Release](https://github.com/Helmutsti/YouTubeCatalog/releases) viene pubblicato un pacchetto standalone con **tutta** la CLI: i sotto-comandi *e* il menu a frecce. Serve solo **Node.js 20 o superiore**.
+Dalle [Release](https://github.com/Helmutsti/Ondo/releases) viene pubblicato un pacchetto standalone con **tutta** la CLI: i sotto-comandi *e* il menu a frecce. Serve solo **Node.js 20 o superiore**.
 
 ```bash
-npm install -g https://github.com/Helmutsti/YouTubeCatalog/releases/download/<tag>/ondo-cli-<tag>.tgz
+npm install -g https://github.com/Helmutsti/Ondo/releases/download/<tag>/ondo-cli-<tag>.tgz
 ondo setup   # scarica yt-dlp + ffmpeg + ffprobe (per il tuo sistema)
 ```
 
