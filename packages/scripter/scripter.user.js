@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ondo Scripter
 // @namespace    ondo-catalog
-// @version      1.5.0
+// @version      1.6.0
 // @description  Scarica video YouTube nella libreria Ondo direttamente da youtube.com, senza passare dalla webapp
 // @match        https://www.youtube.com/*
 // @grant        GM_xmlhttpRequest
@@ -228,11 +228,14 @@
       font-size: 14px; font-weight: 600;
     }
     .scripter-history-btn:hover { background: color-mix(in srgb, var(--ondo-accent) 15%, transparent); }
-    /* Variante a riga intera per il bottone sotto il video (vedi
-       injectWatchActionButton): lì non è più affiancato ad altri bottoni
-       nello stesso rigo, quindi niente margine a sinistra, e centrato invece
-       che allineato a un fianco. */
-    .scripter-watch-btn { margin: 8px 0 0; width: 100%; justify-content: center; }
+    /* Bottone sotto il video (vedi injectWatchActionButton): affiancato ai
+       bottoni di YouTube nella stessa riga. #actions-inner diventa una riga
+       flex che non va a capo; #menu (Mi piace/Condividi/…/⋮) può stringersi,
+       così quando lo spazio manca è YouTube a spostare i suoi bottoni nel
+       menu "⋮" e il nostro resta sempre visibile. */
+    #actions-inner:has(> #scripter-watch-btn) { display: flex; align-items: center; flex-wrap: nowrap; }
+    #actions-inner:has(> #scripter-watch-btn) > #menu { min-width: 0; flex: 0 1 auto; }
+    .scripter-watch-btn { flex: none; white-space: nowrap; }
     /* Stesso esito visivo di is-busy/is-ok/is-error del pallino sulla
        thumbnail, ma qui applicato a un bottone a pillola (quello sotto il
        video): il colore di fondo si spegne/riaccende, il bordo segue. */
@@ -528,9 +531,10 @@
   // esistendo nel DOM (è la causa del bug "non fa niente" segnalato: non era
   // il click a non funzionare, era il contenitore a essere collassato a
   // zero). `#actions-inner` (il loro contenitore comune, un livello sopra)
-  // non viene mai azzerato da YouTube — ci si appende un bottone a riga
-  // intera, sotto invece che affiancato quando lo spazio manca, ma sempre
-  // visibile e cliccabile a qualunque larghezza.
+  // non viene mai azzerato da YouTube — ci si appende il bottone e lo si
+  // rende una riga flex (vedi CSS di .scripter-watch-btn): affiancato ai
+  // bottoni del video, dopo il "⋮", e sempre visibile e cliccabile a
+  // qualunque larghezza perché a stringersi è #menu, non il nostro bottone.
   let watchBtnEl = null;
 
   function injectWatchActionButton() {
