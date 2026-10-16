@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ondo Scripter
 // @namespace    ondo-catalog
-// @version      1.6.0
+// @version      1.6.1
 // @description  Scarica video YouTube nella libreria Ondo direttamente da youtube.com, senza passare dalla webapp
 // @match        https://www.youtube.com/*
 // @grant        GM_xmlhttpRequest
@@ -235,7 +235,7 @@
        menu "⋮" e il nostro resta sempre visibile. */
     #actions-inner:has(> #scripter-watch-btn) { display: flex; align-items: center; flex-wrap: nowrap; }
     #actions-inner:has(> #scripter-watch-btn) > #menu { min-width: 0; flex: 0 1 auto; }
-    .scripter-watch-btn { flex: none; white-space: nowrap; }
+    .scripter-watch-btn { flex: none; white-space: nowrap; margin: 0 8px 0 0; }
     /* Stesso esito visivo di is-busy/is-ok/is-error del pallino sulla
        thumbnail, ma qui applicato a un bottone a pillola (quello sotto il
        video): il colore di fondo si spegne/riaccende, il bordo segue. */
@@ -531,9 +531,9 @@
   // esistendo nel DOM (è la causa del bug "non fa niente" segnalato: non era
   // il click a non funzionare, era il contenitore a essere collassato a
   // zero). `#actions-inner` (il loro contenitore comune, un livello sopra)
-  // non viene mai azzerato da YouTube — ci si appende il bottone e lo si
-  // rende una riga flex (vedi CSS di .scripter-watch-btn): affiancato ai
-  // bottoni del video, dopo il "⋮", e sempre visibile e cliccabile a
+  // non viene mai azzerato da YouTube — ci si mette il bottone, prima di
+  // #menu, e lo si rende una riga flex (vedi CSS di .scripter-watch-btn):
+  // affiancato ai bottoni del video, a sinistra di Mi piace, e sempre visibile e cliccabile a
   // qualunque larghezza perché a stringersi è #menu, non il nostro bottone.
   let watchBtnEl = null;
 
@@ -557,7 +557,9 @@
       ]);
     }
 
-    container.appendChild(watchBtnEl);
+    // A sinistra di Mi piace: prima di #menu, che contiene tutti i bottoni
+    // di YouTube. Se #menu non c'è (layout diverso) va comunque in testa.
+    container.insertBefore(watchBtnEl, container.querySelector(':scope > #menu') || container.firstChild);
   }
 
   // ── Iniezione: cronologia download (accanto alla ricerca) ───────────────
@@ -588,9 +590,15 @@
         panel.hidden = !panel.hidden;
         if (willOpen) {
           const r = btn.getBoundingClientRect();
-          panel.style.left = `${Math.round(r.left)}px`;
-          panel.style.top = `${Math.round(r.bottom + 8 + window.scrollY)}px`;
+          // `position: fixed` → coordinate del viewport, come quelle di
+          // getBoundingClientRect: niente window.scrollY (sommarlo spostava
+          // il pannello in basso di quanto si era scorsa la pagina, fino a
+          // farlo comparire nel vuoto). Il lato sinistro è tenuto dentro la
+          // finestra perché il pannello (340px) non esca a destra.
+          const maxLeft = window.innerWidth - panel.offsetWidth - 8;
           panel.style.position = 'fixed';
+          panel.style.left = `${Math.round(Math.max(8, Math.min(r.left, maxLeft)))}px`;
+          panel.style.top = `${Math.round(r.bottom + 8)}px`;
           refreshHistory();
           startPolling();
         }
