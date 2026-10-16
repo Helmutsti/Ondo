@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ondo Scripter
 // @namespace    ondo-catalog
-// @version      1.6.1
+// @version      1.6.2
 // @description  Scarica video YouTube nella libreria Ondo direttamente da youtube.com, senza passare dalla webapp
 // @match        https://www.youtube.com/*
 // @grant        GM_xmlhttpRequest
@@ -228,13 +228,10 @@
       font-size: 14px; font-weight: 600;
     }
     .scripter-history-btn:hover { background: color-mix(in srgb, var(--ondo-accent) 15%, transparent); }
-    /* Bottone sotto il video (vedi injectWatchActionButton): affiancato ai
-       bottoni di YouTube nella stessa riga. #actions-inner diventa una riga
-       flex che non va a capo; #menu (Mi piace/Condividi/…/⋮) può stringersi,
-       così quando lo spazio manca è YouTube a spostare i suoi bottoni nel
-       menu "⋮" e il nostro resta sempre visibile. */
-    #actions-inner:has(> #scripter-watch-btn) { display: flex; align-items: center; flex-wrap: nowrap; }
-    #actions-inner:has(> #scripter-watch-btn) > #menu { min-width: 0; flex: 0 1 auto; }
+    /* Bottone sotto il video: affiancato ai bottoni di YouTube nella stessa
+       riga. La riga flex del contenitore si imposta da JS, inline (vedi
+       injectWatchActionButton): un selettore qui perdeva contro le regole
+       di YouTube e i suoi bottoni finivano a capo, sotto il nostro. */
     .scripter-watch-btn { flex: none; white-space: nowrap; margin: 0 8px 0 0; }
     /* Stesso esito visivo di is-busy/is-ok/is-error del pallino sulla
        thumbnail, ma qui applicato a un bottone a pillola (quello sotto il
@@ -539,7 +536,11 @@
 
   function injectWatchActionButton() {
     if (location.pathname !== '/watch') return;
-    const container = document.querySelector('#actions-inner') || document.querySelector('#actions');
+    // Dentro ytd-watch-metadata: altrove nella pagina possono esserci altri
+    // `#actions-inner`/`#actions` (nascosti o di altri componenti), e il
+    // primo trovato non è per forza quello sotto il video.
+    const container = document.querySelector('ytd-watch-metadata #actions-inner')
+      || document.querySelector('ytd-watch-metadata #actions');
     if (!container) return;
     if (document.getElementById('scripter-watch-btn')) return; // già agganciato
 
@@ -560,6 +561,21 @@
     // A sinistra di Mi piace: prima di #menu, che contiene tutti i bottoni
     // di YouTube. Se #menu non c'è (layout diverso) va comunque in testa.
     container.insertBefore(watchBtnEl, container.querySelector(':scope > #menu') || container.firstChild);
+
+    // Riga flex che non va a capo, inline e `important` perché le regole di
+    // YouTube su questo contenitore vincono su un nostro foglio di stile.
+    // Gli altri figli (#menu: Mi piace/Condividi/…/⋮) possono stringersi:
+    // quando lo spazio manca è YouTube a spostare i suoi bottoni nel "⋮" e
+    // il nostro resta sempre visibile.
+    container.style.setProperty('display', 'flex', 'important');
+    container.style.setProperty('flex-direction', 'row', 'important');
+    container.style.setProperty('flex-wrap', 'nowrap', 'important');
+    container.style.setProperty('align-items', 'center', 'important');
+    for (const child of container.children) {
+      if (child === watchBtnEl) continue;
+      child.style.setProperty('min-width', '0', 'important');
+      child.style.setProperty('flex', '0 1 auto', 'important');
+    }
   }
 
   // ── Iniezione: cronologia download (accanto alla ricerca) ───────────────
