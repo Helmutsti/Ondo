@@ -706,7 +706,11 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 15px; color: #fff; background: #3a2a24;
 }
-a.d-avatar { flex: none; }
+.d-chan-link {
+  margin: -6px -12px -6px -6px; padding: 6px 12px 6px 6px;
+  border-radius: 12px; color: inherit; text-decoration: none;
+}
+.d-chan-link:hover { background: var(--panel2); }
 .d-chan-name { font-weight: 600; font-size: 14px; color: var(--ink); }
 .d-meta { font-size: 12.5px; color: var(--muted); }
 .d-actions { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }

@@ -235,12 +235,9 @@ export function VideoDetailPage() {
   if (!video) return <div className="empty-state"><span className="spinner"></span></div>;
 
   const key = channelKey(video);
-  // Pagina del creator (o del canale, se non è ancora legato a un profilo):
-  // ci portano sia il nome sia la foto.
   const channelHref = key
     ? (video.channel?.profileId ? `/creators/${encodeURIComponent(video.channel.profileId)}` : `/channels/${encodeURIComponent(key)}`)
     : null;
-  const avatar = video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" /> : channelInitial(video);
   const actions = actionsFor(video);
   const isDownloaded = video.download === 'downloaded';
   // Esiste un "successivo" reale in coda? (M57, ridefinito in M62 con
@@ -319,21 +316,24 @@ export function VideoDetailPage() {
           <h1 className="d-title discreet-text">{video.title ?? video.id}</h1>
 
           <div className="d-row">
-            <div className="d-chan">
-              {channelHref ? (
-                <Link to={channelHref} className="d-avatar" aria-label={video.channel?.name ?? 'Creator'}>{avatar}</Link>
-              ) : (
-                <div className="d-avatar">{avatar}</div>
-              )}
-              <div>
-                {channelHref ? (
-                  <Link to={channelHref} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
-                ) : (
-                  <div className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
-                )}
-                <div className="d-meta">{[dur, date].filter(Boolean).join(' · ')}</div>
-              </div>
-            </div>
+            {/* Foto, nome e durata/data sono un unico blocco: tutto porta alla
+                pagina del creator (o del canale, se non ha ancora un profilo). */}
+            {(() => {
+              const content = (
+                <>
+                  <div className="d-avatar">
+                    {video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" /> : channelInitial(video)}
+                  </div>
+                  <div>
+                    <div className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
+                    <div className="d-meta">{[dur, date].filter(Boolean).join(' · ')}</div>
+                  </div>
+                </>
+              );
+              return channelHref
+                ? <Link to={channelHref} className="d-chan d-chan-link">{content}</Link>
+                : <div className="d-chan">{content}</div>;
+            })()}
             <div className="d-actions">
               <button
                 className={`icon-btn fav-toggle${video.favorite ? ' active' : ''}`}
