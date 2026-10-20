@@ -706,6 +706,7 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 15px; color: #fff; background: #3a2a24;
 }
+a.d-avatar { flex: none; }
 .d-chan-name { font-weight: 600; font-size: 14px; color: var(--ink); }
 .d-meta { font-size: 12.5px; color: var(--muted); }
 .d-actions { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
@@ -883,12 +884,15 @@ button:focus-visible, a:focus-visible, input:focus-visible {
   }
   .logo img { height: 30px; }
   .search-box { min-width: 0; max-width: none; height: 38px; padding: 0 12px; margin: 8px 0; }
+  /* Nascosto finché non lo apre l'icona Cerca in basso (o si è su Cerca). */
+  .search-box:not(.open) { display: none; }
+  .search-box:not(.open) ~ .act-indicator { margin-left: auto; }
   .search-box input { min-width: 0; width: 100%; font-size: 16px; }
 
   .sidebar { display: none; }
   .main { padding: 14px 14px calc(84px + env(safe-area-inset-bottom)); }
 
-  /* Barra di navigazione in basso: quattro icone della stessa larghezza. */
+  /* Barra di navigazione in basso: cinque icone della stessa larghezza. */
   .mobile-nav {
     display: flex;
     position: fixed;
@@ -902,14 +906,15 @@ button:focus-visible, a:focus-visible, input:focus-visible {
     align-items: center;
     z-index: 30;
   }
-  .mobile-nav > a {
+  .mobile-nav > a, .mobile-nav > button {
     flex: 1; min-width: 0; height: 100%;
     display: flex; align-items: center; justify-content: center;
     color: var(--faint);
+    background: none; border: none; padding: 0; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-  .mobile-nav > a.active { color: var(--ink); }
-  .mobile-nav > a.active svg { filter: drop-shadow(0 0 10px color-mix(in oklch, var(--accent) 45%, transparent)); }
+  .mobile-nav > .active { color: var(--ink); }
+  .mobile-nav > .active svg { filter: drop-shadow(0 0 10px color-mix(in oklch, var(--accent) 45%, transparent)); }
 
   .side-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

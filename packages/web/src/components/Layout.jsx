@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutGrid, Rss, Search, Settings, X, Users, Pin, ArrowRight, Activity } from 'lucide-react';
 import { ActivityIndicator } from './ActivityIndicator.jsx';
@@ -39,6 +40,19 @@ export function Layout() {
   // digitazione (la ricerca parte solo su Invio, vedi submitSearch).
   useEffect(() => setQuery(urlQ), [urlQ]);
 
+  // Su telefono il campo di ricerca sta nascosto e lo apre l'icona Cerca della
+  // barra in basso; resta aperto sulla pagina Cerca. flushSync rende visibile
+  // il campo prima del focus, dentro lo stesso tocco: è l'unico modo perché
+  // Safari su iPhone apra la tastiera.
+  const searchInputRef = useRef(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const onSearchPage = location.pathname === '/search';
+  useEffect(() => setSearchOpen(false), [location.pathname]);
+  function openSearch() {
+    flushSync(() => setSearchOpen(true));
+    searchInputRef.current?.focus();
+  }
+
   function submitSearch(e) {
     e.preventDefault();
     const trimmed = query.trim();
@@ -62,9 +76,11 @@ export function Layout() {
       <MetadataWizardHost />
       <header className="topbar">
         <Link to="/" className="logo"><img src="/ondo-logo.svg" alt="Ondo" /></Link>
-        <form className="search-box" onSubmit={submitSearch}>
+        <form className={`search-box${searchOpen || onSearchPage ? ' open' : ''}`} onSubmit={submitSearch}>
           <Search size={16} />
           <input
+            ref={searchInputRef}
+            onBlur={() => { if (!query.trim()) setSearchOpen(false); }}
             placeholder="Cerca video, creator, fonti…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -106,7 +122,7 @@ export function Layout() {
       {/* Mini-player persistente (M54): montato FUORI dall'<Outlet/>, così il suo
           <video> sopravvive al cambio di route e la riproduzione non si taglia. */}
       <MiniPlayer />
-      <MobileNav />
+      <MobileNav onSearch={openSearch} searchActive={searchOpen || onSearchPage} />
     </div>
   );
 }

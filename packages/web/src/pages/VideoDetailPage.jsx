@@ -4,7 +4,6 @@ import { MoreVertical, ExternalLink, CircleSlash, Download, Eye, EyeOff, Maximiz
 import { getVideo, listVideos, setHidden, setFavorite, triggerJob, refreshMetadata } from '../api/client.js';
 import { StatusBadge } from '../components/StatusBadge.jsx';
 import { VideoCard } from '../components/VideoCard.jsx';
-import { BackLink } from '../components/BackLink.jsx';
 import { VideoMetadataPanel, VideoHistoryPanel } from '../components/VideoMetadataPanels.jsx';
 import { openMetadataWizard } from '../lib/metadataWizard.js';
 import { ignoreWithConfirm } from '../lib/ignoreAction.js';
@@ -119,9 +118,12 @@ export function VideoDetailPage() {
       })
       .catch(() => setRelated([]))
       .finally(() => setRelatedLoading(false));
-  }, [video]);
+    // Solo l'id: stellina, metadati o un lavoro finito ricaricano `video` (nuovo
+    // oggetto, stesso video) e non devono rimescolare i suggeriti.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video?.id]);
 
-  // Ricalcolo automatico a ogni cambio di video (loadRelated cambia con `video`).
+  // Ricalcolo automatico solo quando si passa a un altro video.
   useEffect(() => { loadRelated(); }, [loadRelated]);
 
   async function handleAction(kind, label) {
@@ -158,29 +160,43 @@ export function VideoDetailPage() {
 
   // Menu ⋮ della card orizzontale di un suggerito (M53): stesso ventaglio di
   // azioni di handleAction, ma sul suggerito cliccato, non sul video in
-  // pagina. `reload()` sul video corrente basta anche qui: rilegge `video`
-  // (stesso id, dati invariati) ma ne cambia il riferimento, e questo da solo
-  // rifà scattare l'effetto che ricalcola "Video suggeriti" da dati freschi
-  // (nuovo pool + nuovo shuffle) — nessuna funzione di refresh separata.
+  // pagina. La card si aggiorna sul posto, senza rimescolare gli altri
+  // suggeriti; un video nascosto sparisce dalla lista.
+  function refreshRelated(rid) {
+    return getVideo(rid)
+      .then((fresh) => setRelated((list) => list.map((r) => (r.id === rid ? fresh : r))))
+      .catch(() => {});
+  }
+
   async function handleRelatedAction(rid, kind) {
     const target = related.find((r) => r.id === rid);
     try {
       if (kind === 'download') {
-        await startDownload(rid, { triggerJob, onSettled: reload, title: target?.title });
+        await startDownload(rid, { triggerJob, onSettled: () => refreshRelated(rid), title: target?.title });
         return;
       }
       if (kind === 'metadata') {
         await refreshMetadata(rid);
-        reload();
+        await refreshRelated(rid);
         return;
       }
       if (kind === 'favorite' || kind === 'unfavorite') {
         await setFavorite(rid, kind === 'favorite');
-        reload();
+        await refreshRelated(rid);
         return;
       }
-      if (kind === 'hide' || kind === 'unhide') await setHidden(rid, kind === 'hide');
-      reload();
+      // 'refresh' arriva dopo «Ignora per sempre»: il video non esiste più.
+      if (kind === 'refresh') {
+        setRelated((list) => list.filter((r) => r.id !== rid));
+        return;
+      }
+      if (kind === 'hide') {
+        await setHidden(rid, true);
+        setRelated((list) => list.filter((r) => r.id !== rid));
+        return;
+      }
+      if (kind === 'unhide') await setHidden(rid, false);
+      await refreshRelated(rid);
     } catch (e) {
       setError(e.message);
     }
@@ -213,15 +229,18 @@ export function VideoDetailPage() {
 
   if (error) {
     return (
-      <>
-        <BackLink />
-        <div className="notice error" style={{ marginTop: 16 }}>{error}</div>
-      </>
+      <div className="notice error">{error}</div>
     );
   }
   if (!video) return <div className="empty-state"><span className="spinner"></span></div>;
 
   const key = channelKey(video);
+  // Pagina del creator (o del canale, se non è ancora legato a un profilo):
+  // ci portano sia il nome sia la foto.
+  const channelHref = key
+    ? (video.channel?.profileId ? `/creators/${encodeURIComponent(video.channel.profileId)}` : `/channels/${encodeURIComponent(key)}`)
+    : null;
+  const avatar = video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" /> : channelInitial(video);
   const actions = actionsFor(video);
   const isDownloaded = video.download === 'downloaded';
   // Esiste un "successivo" reale in coda? (M57, ridefinito in M62 con
@@ -256,8 +275,7 @@ export function VideoDetailPage() {
 
   return (
     <>
-      <BackLink />
-      <div className="detail-body" style={{ marginTop: 16 }}>
+      <div className="detail-body">
         <div className="player-col">
           <div className="player-frame">
             {isDownloaded && video.videoUrl ? (
@@ -302,12 +320,14 @@ export function VideoDetailPage() {
 
           <div className="d-row">
             <div className="d-chan">
-              <div className="d-avatar">
-                {video.channel?.avatarUrl ? <img className="avatar-photo" src={sized(video.channel.avatarUrl, AVATAR)} alt="" /> : channelInitial(video)}
-              </div>
+              {channelHref ? (
+                <Link to={channelHref} className="d-avatar" aria-label={video.channel?.name ?? 'Creator'}>{avatar}</Link>
+              ) : (
+                <div className="d-avatar">{avatar}</div>
+              )}
               <div>
-                {key ? (
-                  <Link to={video.channel?.profileId ? `/creators/${encodeURIComponent(video.channel.profileId)}` : `/channels/${encodeURIComponent(key)}`} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
+                {channelHref ? (
+                  <Link to={channelHref} className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</Link>
                 ) : (
                   <div className="d-chan-name discreet-text">{video.channel?.name ?? 'Creator sconosciuto'}</div>
                 )}
